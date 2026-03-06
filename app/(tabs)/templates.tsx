@@ -1,0 +1,375 @@
+import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
+import {
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { C, FONTS } from '../../constants/theme';
+import {
+  deleteTemplate,
+  Exercise,
+  getExercises,
+  getTemplates,
+  newId,
+  saveTemplate,
+  Template, TemplateExercise,
+} from '../../store/storage';
+
+// ── Template Card ─────────────────────────────────────────
+
+type TemplateCardProps = {
+  tmpl: Template;
+  onEdit: (t: Template) => void;
+  onDelete: (id: string) => void;
+};
+
+function TemplateCard({ tmpl, onEdit, onDelete }: TemplateCardProps) {
+  return (
+    <View style={tc.wrap}>
+      <View style={tc.top}>
+        <Text style={tc.name}>{tmpl.name}</Text>
+        <View style={tc.actions}>
+          <TouchableOpacity style={tc.iconBtn} onPress={() => onEdit(tmpl)}>
+            <Ionicons name="pencil-outline" size={16} color={C.textMuted} />
+          </TouchableOpacity>
+          <TouchableOpacity style={tc.iconBtn} onPress={() => onDelete(tmpl.id)}>
+            <Ionicons name="trash-outline" size={16} color={C.textDim} />
+          </TouchableOpacity>
+        </View>
+      </View>
+      {tmpl.exercises.length === 0
+        ? <Text style={tc.empty}>No exercises added yet.</Text>
+        : tmpl.exercises.map((ex, i) => (
+          <View key={i} style={tc.exRow}>
+            <View style={tc.dot} />
+            <Text style={tc.exName}>{ex.name}</Text>
+            <Text style={tc.exMeta}>{ex.sets}×{ex.reps}</Text>
+          </View>
+        ))
+      }
+    </View>
+  );
+}
+
+const tc = StyleSheet.create({
+  wrap: { backgroundColor: C.surface, borderRadius: 14, borderWidth: 1, borderColor: C.border, padding: 16, marginBottom: 12 },
+  top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  name: { fontFamily: FONTS.display, fontSize: 17, color: C.textPrimary, fontWeight: '700', flex: 1 },
+  actions: { flexDirection: 'row', gap: 4 },
+  iconBtn: { padding: 8 },
+  exRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 5, borderTopWidth: 1, borderTopColor: C.border },
+  dot: { width: 4, height: 4, borderRadius: 2, backgroundColor: C.amber3, marginRight: 10 },
+  exName: { flex: 1, fontSize: 13, color: C.textSecondary },
+  exMeta: { fontSize: 12, color: C.textMuted, fontFamily: FONTS.mono },
+  empty: { fontSize: 12, color: C.textDim, paddingTop: 4 },
+});
+
+// ── Template Modal ────────────────────────────────────────
+
+type TemplateModalProps = {
+  visible: boolean;
+  initial: Template | null;
+  libraryExercises: Exercise[];
+  onSave: (t: Template) => void;
+  onClose: () => void;
+};
+
+type PickerTab = 'library' | 'manual';
+
+function TemplateModal({ visible, initial, libraryExercises, onSave, onClose }: TemplateModalProps) {
+  const [name, setName] = useState(initial?.name ?? '');
+  const [exercises, setExercises] = useState<TemplateExercise[]>(initial?.exercises ?? []);
+  const [showPicker, setShowPicker] = useState(false);
+  const [pickerTab, setPickerTab] = useState<PickerTab>('library');
+  const [manName, setManName] = useState('');
+  const [manSets, setManSets] = useState('3');
+  const [manReps, setManReps] = useState('10');
+
+  useFocusEffect(
+    useCallback(() => {
+      setName(initial?.name ?? '');
+      setExercises(initial?.exercises ?? []);
+    }, [initial])
+  );
+
+  function close() {
+    setName(initial?.name ?? '');
+    setExercises(initial?.exercises ?? []);
+    onClose();
+  }
+
+  function addFromLib(ex: Exercise) {
+    setExercises((prev) => [...prev, { name: ex.name, sets: ex.sets, reps: ex.reps }]);
+    setShowPicker(false);
+  }
+
+  function addManual() {
+    const n = manName.trim();
+    if (!n) return;
+    setExercises((prev) => [...prev, { name: n, sets: parseInt(manSets) || 3, reps: parseInt(manReps) || 10 }]);
+    setManName(''); setManSets('3'); setManReps('10');
+    setShowPicker(false);
+  }
+
+  function removeEx(i: number) {
+    setExercises((prev) => prev.filter((_, idx) => idx !== i));
+  }
+
+  function handleSave() {
+    if (!name.trim()) return;
+    onSave({ id: initial?.id ?? newId(), name: name.trim(), exercises });
+    close();
+  }
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent>
+      <View style={tm.overlay}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ width: '100%' }}
+        >
+          <View style={tm.sheet}>
+            <View style={tm.handle} />
+            <Text style={tm.title}>{initial ? 'Edit Template' : 'New Template'}</Text>
+
+            <Text style={tm.label}>TEMPLATE NAME</Text>
+            <TextInput
+              style={tm.input} value={name} onChangeText={setName}
+              placeholder="e.g. Push Day" placeholderTextColor={C.textDim} selectionColor={C.amber4}
+            />
+
+            <Text style={[tm.label, { marginTop: 18 }]}>EXERCISES</Text>
+            <ScrollView style={tm.exScroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              {exercises.length === 0
+                ? <Text style={tm.noEx}>No exercises yet.</Text>
+                : exercises.map((ex, i) => (
+                  <View key={i} style={tm.exRow}>
+                    <View style={tm.exDot} />
+                    <Text style={tm.exName}>{ex.name}</Text>
+                    <Text style={tm.exMeta}>{ex.sets}×{ex.reps}</Text>
+                    <TouchableOpacity onPress={() => removeEx(i)} style={{ padding: 6 }}>
+                      <Ionicons name="close" size={14} color={C.textDim} />
+                    </TouchableOpacity>
+                  </View>
+                ))
+              }
+            </ScrollView>
+
+            <TouchableOpacity style={tm.addExBtn} onPress={() => setShowPicker(true)}>
+              <Ionicons name="add" size={14} color={C.amber3} />
+              <Text style={tm.addExTxt}>ADD EXERCISE</Text>
+            </TouchableOpacity>
+
+            <View style={tm.footer}>
+              <TouchableOpacity style={tm.cancel} onPress={close}>
+                <Text style={tm.cancelTxt}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={tm.save} onPress={handleSave}>
+                <Text style={tm.saveTxt}>SAVE</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </View>
+
+      {/* Exercise picker sub-modal */}
+      <Modal visible={showPicker} animationType="slide" transparent>
+        <View style={tm.overlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={{ width: '100%' }}
+          >
+            <View style={tm.sheet}>
+              <View style={tm.handle} />
+              <Text style={tm.title}>Add to Template</Text>
+
+              <View style={tm.tabs}>
+                {(['library', 'manual'] as PickerTab[]).map((t) => (
+                  <TouchableOpacity key={t} style={[tm.tab, pickerTab === t && tm.tabActive]} onPress={() => setPickerTab(t)}>
+                    <Text style={[tm.tabTxt, pickerTab === t && tm.tabTxtActive]}>{t.toUpperCase()}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <ScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                {pickerTab === 'library' && (
+                  libraryExercises.length === 0
+                    ? <Text style={tm.noEx}>No exercises in library.</Text>
+                    : libraryExercises.map((ex) => (
+                      <TouchableOpacity key={ex.id} style={tm.pickItem} onPress={() => addFromLib(ex)}>
+                        <Text style={tm.pickName}>{ex.name}</Text>
+                        <Text style={tm.pickMeta}>{ex.sets} × {ex.reps}</Text>
+                      </TouchableOpacity>
+                    ))
+                )}
+
+                {pickerTab === 'manual' && (
+                  <View style={{ paddingTop: 4 }}>
+                    <Text style={tm.label}>NAME</Text>
+                    <TextInput style={tm.input} value={manName} onChangeText={setManName} placeholder="Exercise name" placeholderTextColor={C.textDim} selectionColor={C.amber4} />
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={tm.label}>SETS</Text>
+                        <TextInput style={tm.input} value={manSets} onChangeText={setManSets} keyboardType="number-pad" selectionColor={C.amber4} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={tm.label}>REPS</Text>
+                        <TextInput style={tm.input} value={manReps} onChangeText={setManReps} keyboardType="number-pad" selectionColor={C.amber4} />
+                      </View>
+                    </View>
+                    <TouchableOpacity style={[tm.save, { marginTop: 16 }]} onPress={addManual}>
+                      <Text style={tm.saveTxt}>ADD</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </ScrollView>
+
+              <TouchableOpacity style={tm.cancel} onPress={() => setShowPicker(false)}>
+                <Text style={[tm.cancelTxt, { textAlign: 'center' }]}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
+    </Modal>
+  );
+}
+
+const tm = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'flex-end' },
+  sheet: {
+    backgroundColor: C.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    borderTopWidth: 1, borderColor: C.border, padding: 20, paddingBottom: 36, maxHeight: '90%',
+  },
+  handle: { width: 40, height: 4, backgroundColor: C.border, borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
+  title: { fontFamily: FONTS.display, fontSize: 20, color: C.textPrimary, fontWeight: '700', marginBottom: 16 },
+  label: { fontSize: 10, color: C.textMuted, letterSpacing: 2, fontWeight: '700', marginBottom: 6 },
+  input: {
+    backgroundColor: C.bg, borderRadius: 10, borderWidth: 1, borderColor: C.border,
+    color: C.textPrimary, fontSize: 15, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 4,
+  },
+  exScroll: { maxHeight: 180, marginBottom: 8 },
+  noEx: { color: C.textDim, fontSize: 12, paddingVertical: 12 },
+  exRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: C.border },
+  exDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: C.amber3, marginRight: 10 },
+  exName: { flex: 1, fontSize: 13, color: C.textSecondary },
+  exMeta: { fontSize: 12, color: C.textMuted, fontFamily: FONTS.mono, marginRight: 6 },
+  addExBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    borderWidth: 1, borderColor: C.amber3, borderRadius: 10, paddingVertical: 11, marginBottom: 16,
+  },
+  addExTxt: { color: C.amber3, fontSize: 11, letterSpacing: 2, fontWeight: '700' },
+  footer: { flexDirection: 'row', gap: 12 },
+  cancel: { flex: 1, borderWidth: 1, borderColor: C.border, borderRadius: 10, paddingVertical: 13 },
+  cancelTxt: { color: C.textMuted, fontWeight: '600', textAlign: 'center' },
+  save: { flex: 1, backgroundColor: C.amber4, borderRadius: 10, paddingVertical: 13, alignItems: 'center' },
+  saveTxt: { color: '#000', fontWeight: '800', letterSpacing: 2 },
+  tabs: { flexDirection: 'row', gap: 8, marginBottom: 14 },
+  tab: { paddingVertical: 6, paddingHorizontal: 14, borderRadius: 8, borderWidth: 1, borderColor: C.border },
+  tabActive: { backgroundColor: C.amber1, borderColor: C.amber3 },
+  tabTxt: { fontSize: 10, color: C.textMuted, letterSpacing: 1.5, fontWeight: '700' },
+  tabTxtActive: { color: C.amber4 },
+  pickItem: { paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: C.border },
+  pickName: { fontSize: 15, color: C.textPrimary, fontWeight: '600' },
+  pickMeta: { fontSize: 11, color: C.textMuted, marginTop: 2 },
+});
+
+// ── Main ──────────────────────────────────────────────────
+
+export default function TemplatesScreen() {
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [libraryExercises, setLibraryExercises] = useState<Exercise[]>([]);
+  const [showModal, setShowModal] = useState(false);
+  const [editing, setEditing] = useState<Template | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      (async () => {
+        setTemplates(await getTemplates());
+        setLibraryExercises(await getExercises());
+      })();
+    }, [])
+  );
+
+  async function handleSave(tmpl: Template) {
+    await saveTemplate(tmpl);
+    setTemplates(await getTemplates());
+  }
+
+  async function handleDelete(id: string) {
+    await deleteTemplate(id);
+    setTemplates(await getTemplates());
+  }
+
+  function openNew() { setEditing(null); setShowModal(true); }
+  function openEdit(tmpl: Template) { setEditing(tmpl); setShowModal(true); }
+
+  return (
+    <SafeAreaView style={s.safe}>
+      <View style={s.topBar}>
+        <Text style={s.title}>TEMPLATES</Text>
+      </View>
+
+      <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
+        {templates.length === 0 ? (
+          <View style={s.empty}>
+            <Ionicons name="copy-outline" size={40} color={C.textDim} />
+            <Text style={s.emptyTitle}>No templates yet</Text>
+            <Text style={s.emptyText}>
+              Create a template like "Push Day" to quickly load all its exercises into a session.
+            </Text>
+            <TouchableOpacity style={s.emptyBtn} onPress={openNew}>
+              <Text style={s.emptyBtnTxt}>CREATE TEMPLATE</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          templates.map((t) => (
+            <TemplateCard key={t.id} tmpl={t} onEdit={openEdit} onDelete={handleDelete} />
+          ))
+        )}
+        <View style={{ height: 100 }} />
+      </ScrollView>
+
+      <TouchableOpacity style={s.fab} onPress={openNew}>
+        <Ionicons name="add" size={28} color="#000" />
+      </TouchableOpacity>
+
+      <TemplateModal
+        visible={showModal}
+        initial={editing}
+        libraryExercises={libraryExercises}
+        onSave={handleSave}
+        onClose={() => setShowModal(false)}
+      />
+    </SafeAreaView>
+  );
+}
+
+const s = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: C.bg },
+  topBar: { paddingHorizontal: 20, paddingTop: 25, paddingBottom: 12 },
+  title: { fontFamily: FONTS.display, fontSize: 22, letterSpacing: 5, color: C.amber4, fontWeight: '700' },
+  content: { padding: 20, paddingTop: 8 },
+  empty: { alignItems: 'center', paddingTop: 80, paddingHorizontal: 32, gap: 12 },
+  emptyTitle: { fontFamily: FONTS.display, fontSize: 20, color: C.textPrimary },
+  emptyText: { fontSize: 13, color: C.textMuted, textAlign: 'center', lineHeight: 22 },
+  emptyBtn: { marginTop: 8, backgroundColor: C.amber4, borderRadius: 10, paddingVertical: 12, paddingHorizontal: 24 },
+  emptyBtnTxt: { color: '#000', fontWeight: '800', fontSize: 12, letterSpacing: 2 },
+  fab: {
+    position: 'absolute', bottom: 24, right: 24,
+    width: 56, height: 56, borderRadius: 28,
+    backgroundColor: C.amber4,
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: C.amber4, shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4, shadowRadius: 8, elevation: 8,
+  },
+});

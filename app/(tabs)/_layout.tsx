@@ -1,35 +1,72 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
-import React from 'react';
+import { StatusBar } from 'expo-status-bar';
+import { C } from '../../constants/theme';
 
-import { HapticTab } from '@/components/haptic-tab';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
-
+export default function RootLayout() {
   return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        headerShown: false,
-        tabBarButton: HapticTab,
-      }}>
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+    <>
+      <StatusBar style="light" backgroundColor={C.bg} />
+      <Tabs
+        screenOptions={{
+          headerShown: false,
+          tabBarStyle: {
+            backgroundColor: C.surface,
+            borderTopColor: C.border,
+            borderTopWidth: 1,
+            paddingBottom: 24,
+            paddingTop: 8,
+            height: 80,
+          },
+          tabBarActiveTintColor: C.amber4,
+          tabBarInactiveTintColor: C.textMuted,
+          tabBarLabelStyle: {
+            fontSize: 10,
+            letterSpacing: 1.5,
+            fontWeight: '700',
+            marginTop: 2,
+          },
         }}
-      />
-      <Tabs.Screen
-        name="explore"
-        options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
-        }}
-      />
-    </Tabs>
+      >
+        <Tabs.Screen
+          name="index"
+          options={{
+            title: 'HOME',
+            tabBarIcon: ({ color, size }: { color: string; size: number }) => (
+              <Ionicons name={'flame-outline' as IoniconsName} size={size} color={color} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="session"
+          options={{
+            title: 'SESSION',
+            tabBarIcon: ({ color, size }: { color: string; size: number }) => (
+              <Ionicons name={'barbell-outline' as IoniconsName} size={size} color={color} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="templates"
+          options={{
+            title: 'TEMPLATES',
+            tabBarIcon: ({ color, size }: { color: string; size: number }) => (
+              <Ionicons name={'copy-outline' as IoniconsName} size={size} color={color} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="library"
+          options={{
+            title: 'LIBRARY',
+            tabBarIcon: ({ color, size }: { color: string; size: number }) => (
+              <Ionicons name={'list-outline' as IoniconsName} size={size} color={color} />
+            ),
+          }}
+        />
+      </Tabs>
+    </>
   );
 }
