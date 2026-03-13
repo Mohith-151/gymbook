@@ -2,9 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
-  KeyboardAvoidingView,
   Modal,
-  Platform,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -140,14 +138,11 @@ function AddModal({ visible, onClose, onAdd, exercises, templates }: AddModalPro
   return (
     <Modal visible={visible} animationType="slide" transparent>
       <View style={m.overlay}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={{ width: '100%' }}
-        >
-          <View style={m.sheet}>
+        <View style={m.sheet}>
+          {/* ── Header + Tabs pinned at TOP ── */}
+          <View style={m.topSection}>
             <View style={m.handle} />
             <Text style={m.title}>Add Exercise</Text>
-
             <View style={m.tabs}>
               {TABS.map((t) => (
                 <TouchableOpacity key={t} style={[m.tab, tab === t && m.tabActive]} onPress={() => setTab(t)}>
@@ -156,6 +151,38 @@ function AddModal({ visible, onClose, onAdd, exercises, templates }: AddModalPro
               ))}
             </View>
 
+            {/* Manual input fields pinned at top when manual tab active */}
+            {tab === 'manual' && (
+              <View style={m.manual}>
+                <Text style={m.fieldLabel}>EXERCISE NAME</Text>
+                <TextInput
+                  style={m.input}
+                  value={manualName}
+                  onChangeText={setManualName}
+                  placeholder="e.g. Bench Press"
+                  placeholderTextColor={C.textDim}
+                  selectionColor={C.amber4}
+                  autoFocus
+                />
+                <View style={m.row2}>
+                  <View style={{ flex: 1, marginRight: 8 }}>
+                    <Text style={m.fieldLabel}>SETS</Text>
+                    <TextInput style={m.input} value={manualSets} onChangeText={setManualSets} keyboardType="number-pad" selectionColor={C.amber4} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={m.fieldLabel}>REPS</Text>
+                    <TextInput style={m.input} value={manualReps} onChangeText={setManualReps} keyboardType="number-pad" selectionColor={C.amber4} />
+                  </View>
+                </View>
+                <TouchableOpacity style={m.addBtn} onPress={addManual}>
+                  <Text style={m.addBtnTxt}>ADD</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+
+          {/* ── Scrollable list (library / template) ── */}
+          {tab !== 'manual' && (
             <ScrollView style={m.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
               {tab === 'library' && (
                 exercises.length === 0
@@ -167,7 +194,6 @@ function AddModal({ visible, onClose, onAdd, exercises, templates }: AddModalPro
                     </TouchableOpacity>
                   ))
               )}
-
               {tab === 'template' && (
                 templates.length === 0
                   ? <Text style={m.empty}>No templates yet. Go to the Templates tab to create one.</Text>
@@ -178,65 +204,40 @@ function AddModal({ visible, onClose, onAdd, exercises, templates }: AddModalPro
                     </TouchableOpacity>
                   ))
               )}
-
-              {tab === 'manual' && (
-                <View style={m.manual}>
-                  <Text style={m.fieldLabel}>EXERCISE NAME</Text>
-                  <TextInput
-                    style={m.input}
-                    value={manualName}
-                    onChangeText={setManualName}
-                    placeholder="e.g. Bench Press"
-                    placeholderTextColor={C.textDim}
-                    selectionColor={C.amber4}
-                  />
-                  <View style={m.row2}>
-                    <View style={{ flex: 1, marginRight: 8 }}>
-                      <Text style={m.fieldLabel}>SETS</Text>
-                      <TextInput style={m.input} value={manualSets} onChangeText={setManualSets} keyboardType="number-pad" selectionColor={C.amber4} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={m.fieldLabel}>REPS</Text>
-                      <TextInput style={m.input} value={manualReps} onChangeText={setManualReps} keyboardType="number-pad" selectionColor={C.amber4} />
-                    </View>
-                  </View>
-                  <TouchableOpacity style={m.addBtn} onPress={addManual}>
-                    <Text style={m.addBtnTxt}>ADD</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
             </ScrollView>
+          )}
 
-            <TouchableOpacity style={m.closeBtn} onPress={onClose}>
-              <Text style={m.closeTxt}>CANCEL</Text>
-            </TouchableOpacity>
-          </View>
-        </KeyboardAvoidingView>
+          <TouchableOpacity style={m.closeBtn} onPress={onClose}>
+            <Text style={m.closeTxt}>CANCEL</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </Modal>
   );
 }
 
 const m = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'flex-end' },
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'flex-start' },
   sheet: {
-    backgroundColor: C.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20,
-    borderTopWidth: 1, borderColor: C.border, paddingTop: 12,
-    paddingHorizontal: 20, maxHeight: '80%', paddingBottom: 32,
+    backgroundColor: C.surface,
+    borderBottomLeftRadius: 20, borderBottomRightRadius: 20,
+    borderBottomWidth: 1, borderColor: C.border,
+    paddingBottom: 16, maxHeight: '85%',
   },
+  topSection: { paddingHorizontal: 20, paddingTop: 12 },
   handle: { width: 40, height: 4, backgroundColor: C.border, borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
   title: { fontFamily: FONTS.display, fontSize: 20, color: C.textPrimary, fontWeight: '700', marginBottom: 16 },
-  tabs: { flexDirection: 'row', gap: 8, marginBottom: 16 },
+  tabs: { flexDirection: 'row', gap: 8, marginBottom: 12 },
   tab: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1, borderColor: C.border },
   tabActive: { backgroundColor: C.amber1, borderColor: C.amber3 },
   tabTxt: { fontSize: 10, color: C.textMuted, letterSpacing: 1.5, fontWeight: '700' },
   tabTxtActive: { color: C.amber4 },
-  scroll: { maxHeight: 340 },
+  scroll: { maxHeight: 340, paddingHorizontal: 20 },
   empty: { color: C.textMuted, fontSize: 13, textAlign: 'center', padding: 32, lineHeight: 20 },
   item: { paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: C.border },
   itemName: { fontSize: 15, color: C.textPrimary, fontWeight: '600' },
   itemMeta: { fontSize: 11, color: C.textMuted, marginTop: 2 },
-  manual: { paddingTop: 4 },
+  manual: { paddingTop: 4, paddingBottom: 8 },
   fieldLabel: { fontSize: 10, color: C.textMuted, letterSpacing: 2, fontWeight: '700', marginBottom: 6, marginTop: 14 },
   input: {
     backgroundColor: C.bg, borderRadius: 10, borderWidth: 1, borderColor: C.border,
@@ -245,7 +246,7 @@ const m = StyleSheet.create({
   row2: { flexDirection: 'row' },
   addBtn: { backgroundColor: C.amber4, borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 20 },
   addBtnTxt: { color: '#000', fontWeight: '800', letterSpacing: 2 },
-  closeBtn: { marginTop: 12, paddingVertical: 14, alignItems: 'center' },
+  closeBtn: { marginTop: 8, paddingVertical: 14, alignItems: 'center' },
   closeTxt: { color: C.textMuted, fontSize: 12, letterSpacing: 2, fontWeight: '700' },
 });
 

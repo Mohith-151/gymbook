@@ -2,9 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
-  KeyboardAvoidingView,
   Modal,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -61,18 +59,17 @@ function ExerciseModal({ visible, initial, onSave, onClose }: ExerciseModalProps
   return (
     <Modal visible={visible} animationType="slide" transparent>
       <View style={m.overlay}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={{ width: '100%' }}
-        >
-          <View style={m.sheet}>
+        <View style={m.sheet}>
+          {/* ── Inputs pinned at TOP ── */}
+          <View style={m.topSection}>
             <View style={m.handle} />
             <Text style={m.title}>{initial ? 'Edit Exercise' : 'New Exercise'}</Text>
 
             <Text style={m.label}>NAME</Text>
             <TextInput
               style={m.input} value={name} onChangeText={setName}
-              placeholder="e.g. Bench Press" placeholderTextColor={C.textDim} selectionColor={C.amber4}
+              placeholder="e.g. Bench Press" placeholderTextColor={C.textDim}
+              selectionColor={C.amber4} autoFocus
             />
 
             <View style={m.row}>
@@ -93,28 +90,32 @@ function ExerciseModal({ visible, initial, onSave, onClose }: ExerciseModalProps
               placeholder="Form cues, weight targets..." placeholderTextColor={C.textDim}
               multiline selectionColor={C.amber4}
             />
-
-            <View style={m.footer}>
-              <TouchableOpacity style={m.cancel} onPress={close}>
-                <Text style={m.cancelTxt}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={m.save} onPress={handleSave}>
-                <Text style={m.saveTxt}>SAVE</Text>
-              </TouchableOpacity>
-            </View>
           </View>
-        </KeyboardAvoidingView>
+
+          {/* ── Footer ── */}
+          <View style={m.footer}>
+            <TouchableOpacity style={m.cancel} onPress={close}>
+              <Text style={m.cancelTxt}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={m.save} onPress={handleSave}>
+              <Text style={m.saveTxt}>SAVE</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </View>
     </Modal>
   );
 }
 
 const m = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'flex-end' },
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'flex-start' },
   sheet: {
-    backgroundColor: C.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20,
-    borderTopWidth: 1, borderColor: C.border, padding: 20, paddingBottom: 36,
+    backgroundColor: C.surface,
+    borderBottomLeftRadius: 20, borderBottomRightRadius: 20,
+    borderBottomWidth: 1, borderColor: C.border,
+    paddingBottom: 20,
   },
+  topSection: { padding: 20 },
   handle: { width: 40, height: 4, backgroundColor: C.border, borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
   title: { fontFamily: FONTS.display, fontSize: 20, color: C.textPrimary, fontWeight: '700', marginBottom: 18 },
   label: { fontSize: 10, color: C.textMuted, letterSpacing: 2, fontWeight: '700', marginBottom: 6, marginTop: 14 },
@@ -123,7 +124,7 @@ const m = StyleSheet.create({
     color: C.textPrimary, fontSize: 15, paddingHorizontal: 14, paddingVertical: 12,
   },
   row: { flexDirection: 'row' },
-  footer: { flexDirection: 'row', gap: 12, marginTop: 20 },
+  footer: { flexDirection: 'row', gap: 12, paddingHorizontal: 20, marginTop: 8 },
   cancel: { flex: 1, borderWidth: 1, borderColor: C.border, borderRadius: 10, paddingVertical: 13, alignItems: 'center' },
   cancelTxt: { color: C.textMuted, fontWeight: '600' },
   save: { flex: 1, backgroundColor: C.amber4, borderRadius: 10, paddingVertical: 13, alignItems: 'center' },

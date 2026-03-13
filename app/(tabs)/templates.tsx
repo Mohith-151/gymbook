@@ -2,9 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
-  KeyboardAvoidingView,
   Modal,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -133,62 +131,61 @@ function TemplateModal({ visible, initial, libraryExercises, onSave, onClose }: 
   return (
     <Modal visible={visible} animationType="slide" transparent>
       <View style={tm.overlay}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={{ width: '100%' }}
-        >
-          <View style={tm.sheet}>
+        <View style={tm.sheet}>
+          {/* ── Inputs pinned at TOP ── */}
+          <View style={tm.topSection}>
             <View style={tm.handle} />
             <Text style={tm.title}>{initial ? 'Edit Template' : 'New Template'}</Text>
 
             <Text style={tm.label}>TEMPLATE NAME</Text>
             <TextInput
               style={tm.input} value={name} onChangeText={setName}
-              placeholder="e.g. Push Day" placeholderTextColor={C.textDim} selectionColor={C.amber4}
+              placeholder="e.g. Push Day" placeholderTextColor={C.textDim}
+              selectionColor={C.amber4} autoFocus
             />
 
             <Text style={[tm.label, { marginTop: 18 }]}>EXERCISES</Text>
-            <ScrollView style={tm.exScroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-              {exercises.length === 0
-                ? <Text style={tm.noEx}>No exercises yet.</Text>
-                : exercises.map((ex, i) => (
-                  <View key={i} style={tm.exRow}>
-                    <View style={tm.exDot} />
-                    <Text style={tm.exName}>{ex.name}</Text>
-                    <Text style={tm.exMeta}>{ex.sets}×{ex.reps}</Text>
-                    <TouchableOpacity onPress={() => removeEx(i)} style={{ padding: 6 }}>
-                      <Ionicons name="close" size={14} color={C.textDim} />
-                    </TouchableOpacity>
-                  </View>
-                ))
-              }
-            </ScrollView>
-
-            <TouchableOpacity style={tm.addExBtn} onPress={() => setShowPicker(true)}>
-              <Ionicons name="add" size={14} color={C.amber3} />
-              <Text style={tm.addExTxt}>ADD EXERCISE</Text>
-            </TouchableOpacity>
-
-            <View style={tm.footer}>
-              <TouchableOpacity style={tm.cancel} onPress={close}>
-                <Text style={tm.cancelTxt}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={tm.save} onPress={handleSave}>
-                <Text style={tm.saveTxt}>SAVE</Text>
-              </TouchableOpacity>
-            </View>
           </View>
-        </KeyboardAvoidingView>
+
+          {/* ── Scrollable exercise list ── */}
+          <ScrollView style={tm.exScroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            {exercises.length === 0
+              ? <Text style={tm.noEx}>No exercises yet.</Text>
+              : exercises.map((ex, i) => (
+                <View key={i} style={tm.exRow}>
+                  <View style={tm.exDot} />
+                  <Text style={tm.exName}>{ex.name}</Text>
+                  <Text style={tm.exMeta}>{ex.sets}×{ex.reps}</Text>
+                  <TouchableOpacity onPress={() => removeEx(i)} style={{ padding: 6 }}>
+                    <Ionicons name="close" size={14} color={C.textDim} />
+                  </TouchableOpacity>
+                </View>
+              ))
+            }
+          </ScrollView>
+
+          <TouchableOpacity style={tm.addExBtn} onPress={() => setShowPicker(true)}>
+            <Ionicons name="add" size={14} color={C.amber3} />
+            <Text style={tm.addExTxt}>ADD EXERCISE</Text>
+          </TouchableOpacity>
+
+          <View style={tm.footer}>
+            <TouchableOpacity style={tm.cancel} onPress={close}>
+              <Text style={tm.cancelTxt}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={tm.save} onPress={handleSave}>
+              <Text style={tm.saveTxt}>SAVE</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </View>
 
-      {/* Exercise picker sub-modal */}
+      {/* ── Exercise picker sub-modal ── */}
       <Modal visible={showPicker} animationType="slide" transparent>
         <View style={tm.overlay}>
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={{ width: '100%' }}
-          >
-            <View style={tm.sheet}>
+          <View style={tm.sheet}>
+            {/* ── Picker inputs pinned at TOP ── */}
+            <View style={tm.topSection}>
               <View style={tm.handle} />
               <Text style={tm.title}>Add to Template</Text>
 
@@ -200,44 +197,49 @@ function TemplateModal({ visible, initial, libraryExercises, onSave, onClose }: 
                 ))}
               </View>
 
-              <ScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-                {pickerTab === 'library' && (
-                  libraryExercises.length === 0
-                    ? <Text style={tm.noEx}>No exercises in library.</Text>
-                    : libraryExercises.map((ex) => (
-                      <TouchableOpacity key={ex.id} style={tm.pickItem} onPress={() => addFromLib(ex)}>
-                        <Text style={tm.pickName}>{ex.name}</Text>
-                        <Text style={tm.pickMeta}>{ex.sets} × {ex.reps}</Text>
-                      </TouchableOpacity>
-                    ))
-                )}
-
-                {pickerTab === 'manual' && (
-                  <View style={{ paddingTop: 4 }}>
-                    <Text style={tm.label}>NAME</Text>
-                    <TextInput style={tm.input} value={manName} onChangeText={setManName} placeholder="Exercise name" placeholderTextColor={C.textDim} selectionColor={C.amber4} />
-                    <View style={{ flexDirection: 'row', gap: 8 }}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={tm.label}>SETS</Text>
-                        <TextInput style={tm.input} value={manSets} onChangeText={setManSets} keyboardType="number-pad" selectionColor={C.amber4} />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={tm.label}>REPS</Text>
-                        <TextInput style={tm.input} value={manReps} onChangeText={setManReps} keyboardType="number-pad" selectionColor={C.amber4} />
-                      </View>
+              {pickerTab === 'manual' && (
+                <View style={{ paddingTop: 4 }}>
+                  <Text style={tm.label}>NAME</Text>
+                  <TextInput
+                    style={tm.input} value={manName} onChangeText={setManName}
+                    placeholder="Exercise name" placeholderTextColor={C.textDim}
+                    selectionColor={C.amber4} autoFocus
+                  />
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={tm.label}>SETS</Text>
+                      <TextInput style={tm.input} value={manSets} onChangeText={setManSets} keyboardType="number-pad" selectionColor={C.amber4} />
                     </View>
-                    <TouchableOpacity style={[tm.save, { marginTop: 16 }]} onPress={addManual}>
-                      <Text style={tm.saveTxt}>ADD</Text>
-                    </TouchableOpacity>
+                    <View style={{ flex: 1 }}>
+                      <Text style={tm.label}>REPS</Text>
+                      <TextInput style={tm.input} value={manReps} onChangeText={setManReps} keyboardType="number-pad" selectionColor={C.amber4} />
+                    </View>
                   </View>
-                )}
-              </ScrollView>
-
-              <TouchableOpacity style={tm.cancel} onPress={() => setShowPicker(false)}>
-                <Text style={[tm.cancelTxt, { textAlign: 'center' }]}>Close</Text>
-              </TouchableOpacity>
+                  <TouchableOpacity style={[tm.save, { marginTop: 16 }]} onPress={addManual}>
+                    <Text style={tm.saveTxt}>ADD</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
-          </KeyboardAvoidingView>
+
+            {pickerTab === 'library' && (
+              <ScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                {libraryExercises.length === 0
+                  ? <Text style={tm.noEx}>No exercises in library.</Text>
+                  : libraryExercises.map((ex) => (
+                    <TouchableOpacity key={ex.id} style={tm.pickItem} onPress={() => addFromLib(ex)}>
+                      <Text style={tm.pickName}>{ex.name}</Text>
+                      <Text style={tm.pickMeta}>{ex.sets} × {ex.reps}</Text>
+                    </TouchableOpacity>
+                  ))
+                }
+              </ScrollView>
+            )}
+
+            <TouchableOpacity style={[tm.cancel, { marginTop: 12 }]} onPress={() => setShowPicker(false)}>
+              <Text style={[tm.cancelTxt, { textAlign: 'center' }]}>Close</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </Modal>
     </Modal>
@@ -245,11 +247,14 @@ function TemplateModal({ visible, initial, libraryExercises, onSave, onClose }: 
 }
 
 const tm = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'flex-end' },
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'flex-start' },
   sheet: {
-    backgroundColor: C.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20,
-    borderTopWidth: 1, borderColor: C.border, padding: 20, paddingBottom: 36, maxHeight: '90%',
+    backgroundColor: C.surface,
+    borderBottomLeftRadius: 20, borderBottomRightRadius: 20,
+    borderBottomWidth: 1, borderColor: C.border,
+    paddingBottom: 20, maxHeight: '90%',
   },
+  topSection: { padding: 20, paddingBottom: 8 },
   handle: { width: 40, height: 4, backgroundColor: C.border, borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
   title: { fontFamily: FONTS.display, fontSize: 20, color: C.textPrimary, fontWeight: '700', marginBottom: 16 },
   label: { fontSize: 10, color: C.textMuted, letterSpacing: 2, fontWeight: '700', marginBottom: 6 },
@@ -257,7 +262,7 @@ const tm = StyleSheet.create({
     backgroundColor: C.bg, borderRadius: 10, borderWidth: 1, borderColor: C.border,
     color: C.textPrimary, fontSize: 15, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 4,
   },
-  exScroll: { maxHeight: 180, marginBottom: 8 },
+  exScroll: { maxHeight: 180, marginBottom: 8, paddingHorizontal: 20 },
   noEx: { color: C.textDim, fontSize: 12, paddingVertical: 12 },
   exRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: C.border },
   exDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: C.amber3, marginRight: 10 },
@@ -265,10 +270,11 @@ const tm = StyleSheet.create({
   exMeta: { fontSize: 12, color: C.textMuted, fontFamily: FONTS.mono, marginRight: 6 },
   addExBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    borderWidth: 1, borderColor: C.amber3, borderRadius: 10, paddingVertical: 11, marginBottom: 16,
+    borderWidth: 1, borderColor: C.amber3, borderRadius: 10, paddingVertical: 11,
+    marginHorizontal: 20, marginBottom: 16,
   },
   addExTxt: { color: C.amber3, fontSize: 11, letterSpacing: 2, fontWeight: '700' },
-  footer: { flexDirection: 'row', gap: 12 },
+  footer: { flexDirection: 'row', gap: 12, paddingHorizontal: 20 },
   cancel: { flex: 1, borderWidth: 1, borderColor: C.border, borderRadius: 10, paddingVertical: 13 },
   cancelTxt: { color: C.textMuted, fontWeight: '600', textAlign: 'center' },
   save: { flex: 1, backgroundColor: C.amber4, borderRadius: 10, paddingVertical: 13, alignItems: 'center' },
@@ -278,7 +284,7 @@ const tm = StyleSheet.create({
   tabActive: { backgroundColor: C.amber1, borderColor: C.amber3 },
   tabTxt: { fontSize: 10, color: C.textMuted, letterSpacing: 1.5, fontWeight: '700' },
   tabTxtActive: { color: C.amber4 },
-  pickItem: { paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: C.border },
+  pickItem: { paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: C.border, paddingHorizontal: 20 },
   pickName: { fontSize: 15, color: C.textPrimary, fontWeight: '600' },
   pickMeta: { fontSize: 11, color: C.textMuted, marginTop: 2 },
 });
