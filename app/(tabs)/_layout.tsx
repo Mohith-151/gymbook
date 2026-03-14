@@ -1,14 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { C } from '../../constants/theme';
+import { useTheme } from '../../constants/ThemeContext';
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
-export default function RootLayout() {
+export default function TabsLayout() {
+  const { C, isDark } = useTheme();
+
   return (
     <>
-      <StatusBar style="light" backgroundColor={C.bg} />
+      <StatusBar style={isDark ? 'light' : 'dark'} backgroundColor={C.bg} />
       <Tabs
         screenOptions={{
           headerShown: false,
@@ -20,7 +22,7 @@ export default function RootLayout() {
             paddingTop: 8,
             height: 80,
           },
-          tabBarActiveTintColor: C.amber4,
+          tabBarActiveTintColor: C.green4,
           tabBarInactiveTintColor: C.textMuted,
           tabBarLabelStyle: {
             fontSize: 10,
