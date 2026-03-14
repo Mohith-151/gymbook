@@ -1,50 +1,60 @@
-# Welcome to your Expo app 👋
+# GymBook 💪
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A personal workout tracking app built with React Native and Expo.
 
-## Get started
+## Features
+
+- **Session Tracking** — Add exercises, track sets, and lock your session when done
+- **Exercise Library** — Save your go-to exercises with default sets and reps
+- **Templates** — Create workout templates like "Push Day" to load quickly into sessions
+- **Heatmap** — GitHub-style quarterly consistency heatmap starting from Jan 1, 2026
+- **Streak Counter** — Tracks consecutive days with locked sessions
+- **Light / Dark Theme** — Toggle between themes, preference saved automatically
+
+## Tech Stack
+
+- React Native + Expo SDK 54 (TypeScript)
+- expo-router for navigation
+- AsyncStorage for local data persistence
+- EAS Build for APK generation
+
+## Getting Started
 
 1. Install dependencies
-
    ```bash
-   npm install
+   npm install --legacy-peer-deps
    ```
 
 2. Start the app
-
    ```bash
    npx expo start
    ```
 
-In the output, you'll find options to open the app in a
+3. Scan the QR code with Expo Go on Android to preview
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## Build APK
 
 ```bash
-npm run reset-project
+eas build -p android --profile preview
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Download the APK from [expo.dev](https://expo.dev) after the build completes.
 
-## Learn more
+## Project Structure
 
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+```
+gymbook/
+├── app/
+│   ├── _layout.tsx          # Root layout with ThemeProvider
+│   └── (tabs)/
+│       ├── _layout.tsx      # Tab navigator
+│       ├── index.tsx        # Home screen (heatmap + today)
+│       ├── session.tsx      # Session tracking
+│       ├── templates.tsx    # Workout templates
+│       └── library.tsx      # Exercise library
+├── constants/
+│   ├── theme.ts             # Light and dark color themes
+│   └── ThemeContext.tsx     # Global theme state
+└── store/
+    └── storage.ts           # AsyncStorage data layer
+```
