@@ -40,9 +40,40 @@ function currentQuarterIndex(): number {
   return yearDiff * 4 + quarter;
 }
 
+// ── Reps helpers ──────────────────────────────────────────
+
+// Total completed reps for a session (done sets × reps per set)
+function calcDayReps(sessions: Sessions, dateKey: string): number {
+  const session = sessions[dateKey];
+  if (!session) return 0;
+  return session.exercises.reduce((total, ex) => {
+    const doneSets = ex.setsData.filter((s) => s.done).length;
+    return total + doneSets * ex.reps;
+  }, 0);
+}
+
+// Max reps done in any single day across the whole quarter
+function calcQuarterMaxReps(sessions: Sessions, quarterIndex: number): number {
+  const { startMonth, year } = getQuarterInfo(quarterIndex);
+  const quarterStart = new Date(year, startMonth, 1);
+  const quarterEnd = new Date(year, startMonth + 3, 0);
+  const todayDate = today();
+
+  let max = 0;
+  const cursor = new Date(quarterStart);
+  while (cursor <= quarterEnd && cursor <= todayDate) {
+    const reps = calcDayReps(sessions, toDateKey(cursor));
+    if (reps > max) max = reps;
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return max;
+}
+
+// ── Grid ──────────────────────────────────────────────────
+
 type GridCell = {
   dateKey: string;
-  density: number | null;
+  reps: number | null; // null = future, -1 = isEmpty padding
   isToday: boolean;
   isEmpty: boolean;
 };
@@ -70,12 +101,14 @@ function buildQuarterGrid(sessions: Sessions, quarterIndex: number): GridCell[][
       const dateKey = toDateKey(cursor);
       const isInQuarter = cursor >= quarterStart && cursor <= quarterEnd;
       const isFuture = cursor > todayDate;
+
       if (!isInQuarter) {
-        week.push({ dateKey, density: null, isToday: false, isEmpty: true });
+        week.push({ dateKey, reps: null, isToday: false, isEmpty: true });
+      } else if (isFuture) {
+        week.push({ dateKey, reps: null, isToday: dateKey === todayStr, isEmpty: false });
       } else {
-        const session = sessions[dateKey];
-        const density = isFuture ? null : session ? calcDensity(session) : 0;
-        week.push({ dateKey, density, isToday: dateKey === todayStr, isEmpty: false });
+        const reps = calcDayReps(sessions, dateKey);
+        week.push({ dateKey, reps, isToday: dateKey === todayStr, isEmpty: false });
       }
       cursor.setDate(cursor.getDate() + 1);
     }
@@ -83,6 +116,8 @@ function buildQuarterGrid(sessions: Sessions, quarterIndex: number): GridCell[][
   }
   return weeks;
 }
+
+// ── Streak ────────────────────────────────────────────────
 
 function calcStreak(sessions: Sessions): number {
   let streak = 0;
@@ -103,6 +138,8 @@ function calcStreak(sessions: Sessions): number {
   return streak;
 }
 
+// ── Heatmap ───────────────────────────────────────────────
+
 const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
 function Heatmap({ sessions }: { sessions: Sessions }) {
@@ -113,13 +150,18 @@ function Heatmap({ sessions }: { sessions: Sessions }) {
   const streak = calcStreak(sessions);
   const { label } = getQuarterInfo(quarterIndex);
 
-  function densityColor(d: number | null, isEmpty: boolean): string {
+  // Quarter max reps — recalculated when quarter changes
+  const quarterMax = calcQuarterMaxReps(sessions, quarterIndex);
+
+  function repColor(reps: number | null, isEmpty: boolean): string {
     if (isEmpty) return C.bg;
-    if (d === null) return C.surface2;
-    if (d === 0) return C.surface2;
-    if (d < 0.25) return C.green1;
-    if (d < 0.5) return C.green2;
-    if (d < 0.75) return C.green3;
+    if (reps === null) return C.surface2;  // future day
+    if (reps === 0) return C.surface2;     // no workout
+    if (quarterMax === 0) return C.green1; // safety fallback
+    const pct = reps / quarterMax;
+    if (pct <= 0.25) return C.green1;
+    if (pct <= 0.5) return C.green2;
+    if (pct <= 0.75) return C.green3;
     return C.green4;
   }
 
@@ -151,7 +193,7 @@ function Heatmap({ sessions }: { sessions: Sessions }) {
                       key={di}
                       style={[
                         hm.cell,
-                        { backgroundColor: densityColor(cell.density, cell.isEmpty) },
+                        { backgroundColor: repColor(cell.reps, cell.isEmpty) },
                         cell.isToday && { borderWidth: 2, borderColor: C.green4 },
                       ]}
                     />
@@ -201,6 +243,8 @@ const hm = StyleSheet.create({
   legendTxt: { fontSize: 9, marginHorizontal: 2 },
   legendCell: { width: 10, height: 10, borderRadius: 2 },
 });
+
+// ── Main ──────────────────────────────────────────────────
 
 export default function HomeScreen() {
   const router = useRouter();
