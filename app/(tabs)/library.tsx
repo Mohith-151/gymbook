@@ -1,207 +1,198 @@
+// app/(tabs)/library.tsx
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
   Modal,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../constants/ThemeContext';
 import { FONTS } from '../../constants/theme';
-import { deleteExercise, Exercise, getExercises, newId, saveExercise } from '../../store/storage';
-
-// ── Exercise Modal ────────────────────────────────────────
-
-type ExerciseModalProps = {
-  visible: boolean;
-  initial: Exercise | null;
-  onSave: (ex: Exercise) => void;
-  onClose: () => void;
-};
-
-function ExerciseModal({ visible, initial, onSave, onClose }: ExerciseModalProps) {
-  const { C } = useTheme();
-  const [name, setName] = useState(initial?.name ?? '');
-  const [sets, setSets] = useState(String(initial?.sets ?? 3));
-  const [reps, setReps] = useState(String(initial?.reps ?? 10));
-  const [notes, setNotes] = useState(initial?.notes ?? '');
-
-  useFocusEffect(useCallback(() => {
-    setName(initial?.name ?? '');
-    setSets(String(initial?.sets ?? 3));
-    setReps(String(initial?.reps ?? 10));
-    setNotes(initial?.notes ?? '');
-  }, [initial]));
-
-  function close() {
-    setName(initial?.name ?? ''); setSets(String(initial?.sets ?? 3));
-    setReps(String(initial?.reps ?? 10)); setNotes(initial?.notes ?? '');
-    onClose();
-  }
-
-  function handleSave() {
-    if (!name.trim()) return;
-    onSave({ id: initial?.id ?? newId(), name: name.trim(), sets: parseInt(sets) || 3, reps: parseInt(reps) || 10, notes: notes.trim() });
-    close();
-  }
-
-  return (
-    <Modal visible={visible} animationType="slide" transparent>
-      <View style={m.overlay}>
-        <View style={[m.sheet, { backgroundColor: C.surface, borderColor: C.border }]}>
-          <View style={m.topSection}>
-            <View style={[m.handle, { backgroundColor: C.border }]} />
-            <Text style={[m.title, { color: C.textPrimary }]}>{initial ? 'Edit Exercise' : 'New Exercise'}</Text>
-
-            <Text style={[m.label, { color: C.textMuted }]}>NAME</Text>
-            <TextInput style={[m.input, { backgroundColor: C.bg, borderColor: C.border, color: C.textPrimary }]} value={name} onChangeText={setName} placeholder="e.g. Bench Press" placeholderTextColor={C.textDim} selectionColor={C.green4} autoFocus />
-
-            <View style={m.row}>
-              <View style={{ flex: 1, marginRight: 8 }}>
-                <Text style={[m.label, { color: C.textMuted }]}>DEFAULT SETS</Text>
-                <TextInput style={[m.input, { backgroundColor: C.bg, borderColor: C.border, color: C.textPrimary }]} value={sets} onChangeText={setSets} keyboardType="number-pad" selectionColor={C.green4} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[m.label, { color: C.textMuted }]}>DEFAULT REPS</Text>
-                <TextInput style={[m.input, { backgroundColor: C.bg, borderColor: C.border, color: C.textPrimary }]} value={reps} onChangeText={setReps} keyboardType="number-pad" selectionColor={C.green4} />
-              </View>
-            </View>
-
-            <Text style={[m.label, { color: C.textMuted }]}>NOTES (optional)</Text>
-            <TextInput style={[m.input, { backgroundColor: C.bg, borderColor: C.border, color: C.textPrimary, height: 80, textAlignVertical: 'top' }]} value={notes} onChangeText={setNotes} placeholder="Form cues, weight targets..." placeholderTextColor={C.textDim} multiline selectionColor={C.green4} />
-          </View>
-
-          <View style={m.footer}>
-            <TouchableOpacity style={[m.cancel, { borderColor: C.border }]} onPress={close}>
-              <Text style={[m.cancelTxt, { color: C.textMuted }]}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[m.save, { backgroundColor: C.green4 }]} onPress={handleSave}>
-              <Text style={m.saveTxt}>SAVE</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    </Modal>
-  );
-}
-
-const m = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'flex-start' },
-  sheet: { borderBottomLeftRadius: 20, borderBottomRightRadius: 20, borderBottomWidth: 1, paddingBottom: 20 },
-  topSection: { padding: 20 },
-  handle: { width: 40, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
-  title: { fontFamily: FONTS.display, fontSize: 20, fontWeight: '700', marginBottom: 18 },
-  label: { fontSize: 10, letterSpacing: 2, fontWeight: '700', marginBottom: 6, marginTop: 14 },
-  input: { borderRadius: 10, borderWidth: 1, fontSize: 15, paddingHorizontal: 14, paddingVertical: 12 },
-  row: { flexDirection: 'row' },
-  footer: { flexDirection: 'row', gap: 12, paddingHorizontal: 20, marginTop: 8 },
-  cancel: { flex: 1, borderWidth: 1, borderRadius: 10, paddingVertical: 13, alignItems: 'center' },
-  cancelTxt: { fontWeight: '600' },
-  save: { flex: 1, borderRadius: 10, paddingVertical: 13, alignItems: 'center' },
-  saveTxt: { color: '#fff', fontWeight: '800', letterSpacing: 2 },
-});
-
-// ── Exercise Card ─────────────────────────────────────────
-
-type ExerciseCardProps = {
-  ex: Exercise;
-  onEdit: (ex: Exercise) => void;
-  onDelete: (id: string) => void;
-};
-
-function ExerciseCard({ ex, onEdit, onDelete }: ExerciseCardProps) {
-  const { C } = useTheme();
-  return (
-    <View style={[ec.wrap, { borderBottomColor: C.border }]}>
-      <View style={ec.main}>
-        <Text style={[ec.name, { color: C.textPrimary }]}>{ex.name}</Text>
-        <Text style={[ec.meta, { color: C.textMuted }]}>{ex.sets} sets × {ex.reps} reps</Text>
-        {ex.notes ? <Text style={[ec.notes, { color: C.textDim }]} numberOfLines={1}>{ex.notes}</Text> : null}
-      </View>
-      <TouchableOpacity style={ec.iconBtn} onPress={() => onEdit(ex)}>
-        <Ionicons name="pencil-outline" size={15} color={C.textMuted} />
-      </TouchableOpacity>
-      <TouchableOpacity style={ec.iconBtn} onPress={() => onDelete(ex.id)}>
-        <Ionicons name="trash-outline" size={15} color={C.textDim} />
-      </TouchableOpacity>
-    </View>
-  );
-}
-
-const ec = StyleSheet.create({
-  wrap: { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, paddingHorizontal: 16, borderBottomWidth: 1 },
-  main: { flex: 1 },
-  name: { fontSize: 15, fontWeight: '600' },
-  meta: { fontSize: 12, marginTop: 2 },
-  notes: { fontSize: 11, marginTop: 3, fontStyle: 'italic' },
-  iconBtn: { padding: 8 },
-});
-
-// ── Main ──────────────────────────────────────────────────
+import {
+  deleteExercise,
+  Exercise,
+  getExercises,
+  saveExercise,
+} from '../../store/exerciseStore';
+import { newId } from '../../store/sessionStore';
 
 export default function LibraryScreen() {
   const { C } = useTheme();
   const [exercises, setExercises] = useState<Exercise[]>([]);
-  const [showModal, setShowModal] = useState(false);
-  const [editing, setEditing] = useState<Exercise | null>(null);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
-  useFocusEffect(useCallback(() => {
-    (async () => setExercises(await getExercises()))();
-  }, []));
+  const [name, setName] = useState('');
+  const [sets, setSets] = useState('3');
+  const [reps, setReps] = useState('10');
 
-  async function handleSave(ex: Exercise) { await saveExercise(ex); setExercises(await getExercises()); }
-  async function handleDelete(id: string) { await deleteExercise(id); setExercises(await getExercises()); }
-  function openNew() { setEditing(null); setShowModal(true); }
-  function openEdit(ex: Exercise) { setEditing(ex); setShowModal(true); }
+  const loadExercises = useCallback(() => {
+    setExercises(getExercises());
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadExercises();
+    }, [loadExercises])
+  );
+
+  function openCreate() {
+    setEditingId(null);
+    setName('');
+    setSets('3');
+    setReps('10');
+    setModalVisible(true);
+  }
+
+  function openEdit(ex: Exercise) {
+    setEditingId(ex.id);
+    setName(ex.name);
+    setSets(String(ex.sets));
+    setReps(String(ex.reps));
+    setModalVisible(true);
+  }
+
+  function handleSave() {
+    if (!name.trim()) return;
+    const ex: Exercise = {
+      id: editingId ?? newId(),
+      name: name.trim(),
+      sets: parseInt(sets, 10) || 1,
+      reps: parseInt(reps, 10) || 1,
+    };
+    saveExercise(ex);
+    setModalVisible(false);
+    loadExercises();
+  }
+
+  function handleDelete(id: string) {
+    deleteExercise(id);
+    loadExercises();
+  }
 
   return (
     <SafeAreaView style={[s.safe, { backgroundColor: C.bg }]}>
-      <View style={s.topBar}>
-        <Text style={[s.title, { color: C.green4 }]}>LIBRARY</Text>
+      <View style={s.header}>
+        <Text style={[s.title, { color: C.green4 }]}>EXERCISES</Text>
+        <Text style={[s.subtitle, { color: C.textMuted }]}>
+          {exercises.length} EXERCISES IN LIBRARY
+        </Text>
       </View>
 
-      <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
-        {exercises.length === 0 ? (
-          <View style={s.empty}>
-            <Ionicons name="barbell-outline" size={40} color={C.textDim} />
-            <Text style={[s.emptyTitle, { color: C.textPrimary }]}>Empty Library</Text>
-            <Text style={[s.emptyText, { color: C.textMuted }]}>Add your go-to exercises here with default sets and reps. They'll be ready to pull into any session or template.</Text>
-            <TouchableOpacity style={[s.emptyBtn, { backgroundColor: C.green4 }]} onPress={openNew}>
-              <Text style={s.emptyBtnTxt}>ADD EXERCISE</Text>
-            </TouchableOpacity>
+      <ScrollView contentContainerStyle={s.list} showsVerticalScrollIndicator={false}>
+        {exercises.map((ex) => (
+          <View key={ex.id} style={[s.card, { backgroundColor: C.surface, borderColor: C.border }]}>
+            <View style={s.cardLeft}>
+              <Text style={[s.exName, { color: C.textPrimary }]}>{ex.name}</Text>
+              <Text style={[s.exMeta, { color: C.textMuted }]}>
+                {ex.sets} SETS × {ex.reps} REPS
+              </Text>
+            </View>
+            <View style={s.cardActions}>
+              <TouchableOpacity onPress={() => openEdit(ex)} style={s.iconBtn}>
+                <Ionicons name="pencil-outline" size={18} color={C.textSecondary} />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => handleDelete(ex.id)} style={s.iconBtn}>
+                <Ionicons name="trash-outline" size={18} color="#f85149" />
+              </TouchableOpacity>
+            </View>
           </View>
-        ) : (
-          <View style={[s.card, { backgroundColor: C.surface, borderColor: C.border }]}>
-            {exercises.map((ex) => <ExerciseCard key={ex.id} ex={ex} onEdit={openEdit} onDelete={handleDelete} />)}
-          </View>
-        )}
-        <View style={{ height: 100 }} />
+        ))}
       </ScrollView>
 
-      <TouchableOpacity style={[s.fab, { backgroundColor: C.green4, shadowColor: C.green4 }]} onPress={openNew}>
-        <Ionicons name="add" size={28} color="#fff" />
+      {/* FAB */}
+      <TouchableOpacity style={[s.fab, { backgroundColor: C.green4 }]} onPress={openCreate}>
+        <Ionicons name="add" size={28} color="#000" />
       </TouchableOpacity>
 
-      <ExerciseModal visible={showModal} initial={editing} onSave={handleSave} onClose={() => setShowModal(false)} />
+      {/* Slide-Down Top Modal */}
+      <Modal visible={modalVisible} animationType="slide" transparent>
+        <TouchableWithoutFeedback onPress={() => setModalVisible(false)}>
+          <View style={s.modalOverlay}>
+            <TouchableWithoutFeedback>
+              <View style={[s.modalContent, { backgroundColor: C.surface, borderColor: C.border, paddingTop: (StatusBar.currentHeight || 20) + 16 }]}>
+                <Text style={[s.modalTitle, { color: C.textPrimary }]}>
+                  {editingId ? 'EDIT EXERCISE' : 'NEW EXERCISE'}
+                </Text>
+
+                <TextInput
+                  style={[s.input, { backgroundColor: C.bg, borderColor: C.border, color: C.textPrimary }]}
+                  placeholder="Exercise Name (e.g. Bench Press)"
+                  placeholderTextColor={C.textMuted}
+                  value={name}
+                  onChangeText={setName}
+                  autoFocus
+                />
+
+                <View style={s.rowInputs}>
+                  <View style={s.numCol}>
+                    <Text style={[s.inputLabel, { color: C.textMuted }]}>SETS</Text>
+                    <TextInput
+                      style={[s.input, { backgroundColor: C.bg, borderColor: C.border, color: C.textPrimary }]}
+                      keyboardType="number-pad"
+                      value={sets}
+                      onChangeText={setSets}
+                    />
+                  </View>
+                  <View style={s.numCol}>
+                    <Text style={[s.inputLabel, { color: C.textMuted }]}>REPS</Text>
+                    <TextInput
+                      style={[s.input, { backgroundColor: C.bg, borderColor: C.border, color: C.textPrimary }]}
+                      keyboardType="number-pad"
+                      value={reps}
+                      onChangeText={setReps}
+                    />
+                  </View>
+                </View>
+
+                <View style={s.modalActions}>
+                  <TouchableOpacity style={[s.btnCancel, { borderColor: C.border }]} onPress={() => setModalVisible(false)}>
+                    <Text style={[s.btnCancelTxt, { color: C.textMuted }]}>CANCEL</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[s.btnSave, { backgroundColor: C.green4 }]} onPress={handleSave}>
+                    <Text style={s.btnSaveTxt}>SAVE</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
     </SafeAreaView>
   );
 }
 
 const s = StyleSheet.create({
   safe: { flex: 1 },
-  topBar: { paddingHorizontal: 20, paddingTop: 25, paddingBottom: 12 },
-  title: { fontFamily: FONTS.display, fontSize: 22, letterSpacing: 5, fontWeight: '700' },
-  content: { padding: 20, paddingTop: 8 },
-  empty: { alignItems: 'center', paddingTop: 80, paddingHorizontal: 32, gap: 12 },
-  emptyTitle: { fontFamily: FONTS.display, fontSize: 20 },
-  emptyText: { fontSize: 13, textAlign: 'center', lineHeight: 22 },
-  emptyBtn: { marginTop: 8, borderRadius: 10, paddingVertical: 12, paddingHorizontal: 24 },
-  emptyBtnTxt: { color: '#fff', fontWeight: '800', fontSize: 12, letterSpacing: 2 },
-  card: { borderRadius: 14, borderWidth: 1, overflow: 'hidden' },
-  fab: { position: 'absolute', bottom: 24, right: 24, width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 8 },
+  header: { padding: 20, paddingBottom: 10 },
+  title: { fontFamily: FONTS.display, fontSize: 30, letterSpacing: 8, fontWeight: '700' },
+  subtitle: { fontSize: 11, letterSpacing: 1.5, marginTop: 4 },
+  list: { padding: 20, paddingBottom: 100, gap: 12 },
+  card: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderRadius: 12, borderWidth: 1 },
+  cardLeft: { flex: 1, marginRight: 12 },
+  exName: { fontSize: 16, fontWeight: '700', marginBottom: 4 },
+  exMeta: { fontSize: 12, letterSpacing: 1 },
+  cardActions: { flexDirection: 'row', gap: 8 },
+  iconBtn: { padding: 6 },
+  fab: { position: 'absolute', right: 20, bottom: 30, width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', elevation: 5 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-start' },
+  modalContent: { borderBottomLeftRadius: 20, borderBottomRightRadius: 20, borderWidth: 1, padding: 20, gap: 14 },
+  modalTitle: { fontFamily: FONTS.display, fontSize: 18, letterSpacing: 2, marginBottom: 4 },
+  input: { borderWidth: 1, borderRadius: 8, padding: 12, fontSize: 14 },
+  rowInputs: { flexDirection: 'row', gap: 12 },
+  numCol: { flex: 1, gap: 4 },
+  inputLabel: { fontSize: 10, letterSpacing: 1, fontWeight: '700' },
+  modalActions: { flexDirection: 'row', gap: 12, marginTop: 8 },
+  btnCancel: { flex: 1, borderWidth: 1, borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
+  btnCancelTxt: { fontSize: 12, fontWeight: '700', letterSpacing: 1 },
+  btnSave: { flex: 1, borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
+  btnSaveTxt: { color: '#000', fontSize: 12, fontWeight: '800', letterSpacing: 1 },
 });
