@@ -1,8 +1,9 @@
 // app/(tabs)/index.tsx
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
+  Dimensions,
   ScrollView,
   StyleSheet,
   Text,
@@ -10,10 +11,18 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Svg, { Circle, Defs, Line, LinearGradient, Path, Stop } from 'react-native-svg';
 import { useTheme } from '../../constants/ThemeContext';
 import { FONTS } from '../../constants/theme';
-import { calcDensity, getAllSessions, getTodaySession, Session, Sessions } from '../../store/sessionStore';
+import {
+  calcDensity,
+  getAllSessions,
+  getTodaySession,
+  Session,
+  Sessions,
+} from '../../store/sessionStore';
 
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CELL = 13;
 const GAP = 3;
 
@@ -41,14 +50,12 @@ function currentQuarterIndex(): number {
   return yearDiff * 4 + quarter;
 }
 
-// ── Reps helpers (using cached totalReps) ─────────────────
+// ── Analytics Helpers ─────────────────────────────────────
 
 function calcDayReps(sessions: Sessions, dateKey: string): number {
   const session = sessions[dateKey];
   if (!session) return 0;
   if (session.totalReps !== undefined) return session.totalReps;
-  
-  // Fallback calculation for legacy sessions
   return session.exercises.reduce((total, ex) => {
     const doneSets = ex.setsData.filter((s) => s.done).length;
     return total + doneSets * ex.reps;
@@ -71,7 +78,72 @@ function calcQuarterMaxReps(sessions: Sessions, quarterIndex: number): number {
   return max;
 }
 
-// ── Grid ──────────────────────────────────────────────────
+function calcLifetimeReps(sessions: Sessions): number {
+  return Object.keys(sessions).reduce((sum, key) => sum + calcDayReps(sessions, key), 0);
+}
+
+function calcPeakDay(sessions: Sessions): { date: string; reps: number } {
+  let peakDate = 'N/A';
+  let maxReps = 0;
+  Object.keys(sessions).forEach((key) => {
+    const reps = calcDayReps(sessions, key);
+    if (reps > maxReps) {
+      maxReps = reps;
+      peakDate = key;
+    }
+  });
+  return { date: peakDate, reps: maxReps };
+}
+
+function calcStreak(sessions: Sessions): number {
+  let streak = 0;
+  for (let i = 0; i < 365; i++) {
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    date.setDate(date.getDate() - i);
+    const dateKey = toDateKey(date);
+    const session = sessions[dateKey];
+    if (session && session.locked) {
+      streak++;
+    } else if (i === 0) {
+      continue;
+    } else {
+      break;
+    }
+  }
+  return streak;
+}
+
+// Calculates All-Time Maximum Streak record
+function calcMaxStreak(sessions: Sessions): number {
+  const keys = Object.keys(sessions).filter((k) => sessions[k].locked).sort();
+  if (keys.length === 0) return 0;
+
+  let maxStreak = 0;
+  let currentStreak = 0;
+  let lastDate: Date | null = null;
+
+  keys.forEach((key) => {
+    const d = new Date(key);
+    if (!lastDate) {
+      currentStreak = 1;
+    } else {
+      const diffTime = Math.abs(d.getTime() - lastDate.getTime());
+      const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+      if (diffDays === 1) {
+        currentStreak++;
+      } else if (diffDays > 1) {
+        currentStreak = 1;
+      }
+    }
+    lastDate = d;
+    if (currentStreak > maxStreak) maxStreak = currentStreak;
+  });
+
+  return Math.max(maxStreak, calcStreak(sessions));
+}
+
+// ── Grid & Heatmap ────────────────────────────────────────
 
 type GridCell = {
   dateKey: string;
@@ -119,25 +191,6 @@ function buildQuarterGrid(sessions: Sessions, quarterIndex: number): GridCell[][
   return weeks;
 }
 
-function calcStreak(sessions: Sessions): number {
-  let streak = 0;
-  for (let i = 0; i < 365; i++) {
-    const date = new Date();
-    date.setHours(0, 0, 0, 0);
-    date.setDate(date.getDate() - i);
-    const dateKey = toDateKey(date);
-    const session = sessions[dateKey];
-    if (session && session.locked) {
-      streak++;
-    } else if (i === 0) {
-      continue;
-    } else {
-      break;
-    }
-  }
-  return streak;
-}
-
 const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
 function Heatmap({ sessions }: { sessions: Sessions }) {
@@ -145,14 +198,12 @@ function Heatmap({ sessions }: { sessions: Sessions }) {
   const maxQ = currentQuarterIndex();
   const [quarterIndex, setQuarterIndex] = useState(maxQ);
   const grid = buildQuarterGrid(sessions, quarterIndex);
-  const streak = calcStreak(sessions);
   const { label } = getQuarterInfo(quarterIndex);
   const quarterMax = calcQuarterMaxReps(sessions, quarterIndex);
 
   function repColor(reps: number | null, isEmpty: boolean): string {
     if (isEmpty) return C.bg;
-    if (reps === null) return C.surface2;
-    if (reps === 0) return C.surface2;
+    if (reps === null || reps === 0) return C.surface2;
     if (quarterMax === 0) return C.green1;
     const pct = reps / quarterMax;
     if (pct <= 0.25) return C.green1;
@@ -163,48 +214,38 @@ function Heatmap({ sessions }: { sessions: Sessions }) {
 
   return (
     <View>
-      <View style={hm.topRow}>
-        <View style={hm.gridSection}>
-          <View style={hm.nav}>
-            <TouchableOpacity onPress={() => setQuarterIndex(q => q - 1)} style={hm.navBtn} disabled={quarterIndex <= 0}>
-              <Text style={[hm.navTxt, { color: quarterIndex <= 0 ? C.textDim : C.green4 }]}>‹</Text>
-            </TouchableOpacity>
-            <Text style={[hm.quarterLabel, { color: C.textSecondary }]}>{label}</Text>
-            <TouchableOpacity onPress={() => setQuarterIndex(q => q + 1)} style={hm.navBtn} disabled={quarterIndex >= maxQ}>
-              <Text style={[hm.navTxt, { color: quarterIndex >= maxQ ? C.textDim : C.green4 }]}>›</Text>
-            </TouchableOpacity>
-          </View>
+      <View style={hm.nav}>
+        <TouchableOpacity onPress={() => setQuarterIndex((q) => q - 1)} style={hm.navBtn} disabled={quarterIndex <= 0}>
+          <Text style={[hm.navTxt, { color: quarterIndex <= 0 ? C.textDim : C.green4 }]}>‹</Text>
+        </TouchableOpacity>
+        <Text style={[hm.quarterLabel, { color: C.textSecondary }]}>{label}</Text>
+        <TouchableOpacity onPress={() => setQuarterIndex((q) => q + 1)} style={hm.navBtn} disabled={quarterIndex >= maxQ}>
+          <Text style={[hm.navTxt, { color: quarterIndex >= maxQ ? C.textDim : C.green4 }]}>›</Text>
+        </TouchableOpacity>
+      </View>
 
-          <View style={hm.wrap}>
-            <View style={hm.labels}>
-              {DAY_LABELS.map((l, i) => (
-                <Text key={i} style={[hm.label, { color: C.textDim }]}>{l}</Text>
+      <View style={hm.wrap}>
+        <View style={hm.labels}>
+          {DAY_LABELS.map((l, i) => (
+            <Text key={i} style={[hm.label, { color: C.textDim }]}>{l}</Text>
+          ))}
+        </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={hm.scroll}>
+          {grid.map((week, wi) => (
+            <View key={wi} style={hm.col}>
+              {week.map((cell, di) => (
+                <View
+                  key={di}
+                  style={[
+                    hm.cell,
+                    { backgroundColor: repColor(cell.reps, cell.isEmpty) },
+                    cell.isToday && { borderWidth: 2, borderColor: C.green4 },
+                  ]}
+                />
               ))}
             </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={hm.scroll}>
-              {grid.map((week, wi) => (
-                <View key={wi} style={hm.col}>
-                  {week.map((cell, di) => (
-                    <View
-                      key={di}
-                      style={[
-                        hm.cell,
-                        { backgroundColor: repColor(cell.reps, cell.isEmpty) },
-                        cell.isToday && { borderWidth: 2, borderColor: C.green4 },
-                      ]}
-                    />
-                  ))}
-                </View>
-              ))}
-            </ScrollView>
-          </View>
-        </View>
-
-        <View style={hm.streakBox}>
-          <Text style={[hm.streakNum, { color: C.green4 }]}>{streak}</Text>
-          <Text style={hm.streakFire}>🔥</Text>
-          <Text style={[hm.streakLabel, { color: C.textMuted }]}>STREAK</Text>
-        </View>
+          ))}
+        </ScrollView>
       </View>
 
       <View style={hm.legend}>
@@ -219,8 +260,6 @@ function Heatmap({ sessions }: { sessions: Sessions }) {
 }
 
 const hm = StyleSheet.create({
-  topRow: { flexDirection: 'row', alignItems: 'center' },
-  gridSection: { flex: 1 },
   nav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 14, paddingTop: 10 },
   navBtn: { padding: 4 },
   navTxt: { fontSize: 22, fontWeight: '700' },
@@ -231,14 +270,136 @@ const hm = StyleSheet.create({
   scroll: { flexDirection: 'row' },
   col: { flexDirection: 'column', marginRight: GAP },
   cell: { width: CELL, height: CELL, borderRadius: 2, marginBottom: GAP },
-  streakBox: { alignItems: 'center', justifyContent: 'center', paddingRight: 16, paddingTop: 10, gap: 2, minWidth: 56 },
-  streakNum: { fontFamily: FONTS.display, fontSize: 28, fontWeight: '700', lineHeight: 32 },
-  streakFire: { fontSize: 18 },
-  streakLabel: { fontSize: 8, letterSpacing: 1.5, fontWeight: '700' },
   legend: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 14, paddingBottom: 12 },
   legendTxt: { fontSize: 9, marginHorizontal: 2 },
   legendCell: { width: 10, height: 10, borderRadius: 2 },
 });
+
+// ── Interactive Stock-Market Line Chart ────────────────────
+
+type TimeRange = '7D' | '30D' | 'QTD' | 'ALL';
+
+function RepsLineGraph({ sessions }: { sessions: Sessions }) {
+  const { C } = useTheme();
+  const [range, setRange] = useState<TimeRange>('7D');
+
+  const chartData = useMemo(() => {
+    const points: { dateLabel: string; reps: number }[] = [];
+    const todayDate = today();
+
+    let daysCount = 7;
+    if (range === '30D') daysCount = 30;
+    else if (range === 'QTD') {
+      const qIndex = currentQuarterIndex();
+      const { startMonth, year } = getQuarterInfo(qIndex);
+      const qStart = new Date(year, startMonth, 1);
+      const diffTime = Math.abs(todayDate.getTime() - qStart.getTime());
+      daysCount = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+    } else if (range === 'ALL') {
+      daysCount = 90;
+    }
+
+    for (let i = daysCount - 1; i >= 0; i--) {
+      const cursor = new Date();
+      cursor.setHours(0, 0, 0, 0);
+      cursor.setDate(cursor.getDate() - i);
+      const key = toDateKey(cursor);
+      const reps = calcDayReps(sessions, key);
+      const dateLabel = `${cursor.getMonth() + 1}/${cursor.getDate()}`;
+      points.push({ dateLabel, reps });
+    }
+
+    return points;
+  }, [sessions, range]);
+
+  const maxReps = useMemo(() => {
+    const max = Math.max(...chartData.map((p) => p.reps), 1);
+    return max;
+  }, [chartData]);
+
+  const graphWidth = SCREEN_WIDTH - 72;
+  const graphHeight = 120;
+
+  const pathString = useMemo(() => {
+    if (!chartData.length) return '';
+    const stepX = graphWidth / Math.max(chartData.length - 1, 1);
+    return chartData.reduce((acc, pt, i) => {
+      const x = i * stepX;
+      const y = graphHeight - (pt.reps / maxReps) * (graphHeight - 20) - 10;
+      return i === 0 ? `M ${x} ${y}` : `${acc} L ${x} ${y}`;
+    }, '');
+  }, [chartData, maxReps, graphWidth, graphHeight]);
+
+  return (
+    <View style={g.card}>
+      <View style={g.topRow}>
+        <View>
+          <Text style={[g.title, { color: C.textPrimary }]}>VOLUME TREND</Text>
+          <Text style={[g.subtitle, { color: C.textMuted }]}>DAILY COMPLETED REPS</Text>
+        </View>
+        <View style={g.pillsRow}>
+          {(['7D', '30D', 'QTD', 'ALL'] as TimeRange[]).map((r) => (
+            <TouchableOpacity
+              key={r}
+              onPress={() => setRange(r)}
+              style={[
+                g.pill,
+                { backgroundColor: range === r ? C.green4 : C.surface2 },
+              ]}
+            >
+              <Text style={[g.pillTxt, { color: range === r ? '#000' : C.textSecondary }]}>{r}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      <View style={g.chartContainer}>
+        <Svg width={graphWidth} height={graphHeight}>
+          <Defs>
+            <LinearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0%" stopColor={C.green4} stopOpacity="0.4" />
+              <Stop offset="100%" stopColor={C.green4} stopOpacity="0.0" />
+            </LinearGradient>
+          </Defs>
+          <Line x1="0" y1={graphHeight - 10} x2={graphWidth} y2={graphHeight - 10} stroke={C.border} strokeWidth="1" />
+          <Path d={`${pathString} L ${graphWidth} ${graphHeight - 10} L 0 ${graphHeight - 10} Z`} fill="url(#grad)" />
+          <Path d={pathString} stroke={C.green4} strokeWidth="3" fill="none" />
+          {chartData.map((pt, i) => {
+            const stepX = graphWidth / Math.max(chartData.length - 1, 1);
+            const x = i * stepX;
+            const y = graphHeight - (pt.reps / maxReps) * (graphHeight - 20) - 10;
+            return pt.reps > 0 ? (
+              <Circle key={i} cx={x} cy={y} r="3" fill={C.green4} />
+            ) : null;
+          })}
+        </Svg>
+      </View>
+
+      <TouchableOpacity
+        style={[g.exportBtn, { borderColor: C.green3 }]}
+        onPress={() => alert('Video Export feature prepared!')}
+      >
+        <Ionicons name="videocam-outline" size={16} color={C.green3} />
+        <Text style={[g.exportTxt, { color: C.green3 }]}>EXPORT PROGRESSION VIDEO</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+const g = StyleSheet.create({
+  card: { padding: 16, borderRadius: 14, borderWidth: 1, gap: 14, marginVertical: 8 },
+  topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  title: { fontFamily: FONTS.display, fontSize: 15, letterSpacing: 2 },
+  subtitle: { fontSize: 9, letterSpacing: 1, marginTop: 2 },
+  pillsRow: { flexDirection: 'row', gap: 4 },
+  pill: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+  pillTxt: { fontSize: 9, fontWeight: '800' },
+  chartContainer: { alignItems: 'center', justifyContent: 'center', paddingVertical: 6 },
+  exportBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, borderRadius: 8, paddingVertical: 10 },
+  exportTxt: { fontSize: 10, fontWeight: '800', letterSpacing: 1.5 },
+});
+
+// ── Main HomeScreen ───────────────────────────────────────
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -257,13 +418,19 @@ export default function HomeScreen() {
   const pct = Math.round(density * 100);
   const totalSets = todaySession?.exercises.reduce((s, e) => s + e.sets, 0) ?? 0;
   const doneSets = todaySession?.exercises.reduce(
-    (s, e) => s + e.setsData.filter((sd) => sd.done).length, 0
+    (s, e) => s + e.setsData.filter((sd) => sd.done).length,
+    0
   ) ?? 0;
+
+  const maxStreak = useMemo(() => calcMaxStreak(sessions), [sessions]);
+  const lifetimeReps = useMemo(() => calcLifetimeReps(sessions), [sessions]);
+  const peakDay = useMemo(() => calcPeakDay(sessions), [sessions]);
 
   return (
     <SafeAreaView style={[s.safe, { backgroundColor: C.bg }]}>
       <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
 
+        {/* 1. Header */}
         <View style={s.header}>
           <View>
             <Text style={[s.title, { color: C.green4 }]}>GYMBOOK</Text>
@@ -276,12 +443,14 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* 2. Heatmap Card */}
         <Text style={[s.sectionLabel, { color: C.textMuted }]}>CONSISTENCY</Text>
         <View style={[s.card, { backgroundColor: C.surface, borderColor: C.border }]}>
           <Heatmap sessions={sessions} />
         </View>
 
-        <Text style={[s.sectionLabel, { color: C.textMuted, marginTop: 24 }]}>TODAY</Text>
+        {/* 3. Today's Workout Card */}
+        <Text style={[s.sectionLabel, { color: C.textMuted, marginTop: 20 }]}>TODAY</Text>
         <View style={[s.card, { backgroundColor: C.surface, borderColor: C.border }]}>
           {!todaySession ? (
             <View style={s.emptyToday}>
@@ -327,6 +496,39 @@ export default function HomeScreen() {
           )}
         </View>
 
+        {/* 4. Side-by-Side Stat Cards (Max Streak & Lifetime Reps) */}
+        <View style={s.sideBySideRow}>
+          <View style={[s.halfCard, { backgroundColor: C.surface, borderColor: C.border }]}>
+            <Text style={s.cardEmoji}>🏆</Text>
+            <Text style={[s.halfCardNum, { color: C.green4 }]}>{maxStreak}</Text>
+            <Text style={[s.halfCardLabel, { color: C.textMuted }]}>MAX STREAK</Text>
+          </View>
+
+          <View style={[s.halfCard, { backgroundColor: C.surface, borderColor: C.border }]}>
+            <Text style={s.cardEmoji}>⚡</Text>
+            <Text style={[s.halfCardNum, { color: C.textPrimary }]}>{lifetimeReps}</Text>
+            <Text style={[s.halfCardLabel, { color: C.textMuted }]}>LIFETIME REPS</Text>
+          </View>
+        </View>
+
+        {/* 5. Peak-Day Rectangle Stat Card */}
+        <View style={[s.fullWidthCard, { backgroundColor: C.surface, borderColor: C.border }]}>
+          <View style={s.peakLeft}>
+            <Text style={s.cardEmoji}>🔥</Text>
+            <View>
+              <Text style={[s.peakTitle, { color: C.textPrimary }]}>PERSONAL BEST DAY</Text>
+              <Text style={[s.peakSub, { color: C.textMuted }]}>{peakDay.date}</Text>
+            </View>
+          </View>
+          <View style={s.peakRight}>
+            <Text style={[s.peakNum, { color: C.green4 }]}>{peakDay.reps}</Text>
+            <Text style={[s.peakLabel, { color: C.textMuted }]}>REPS DONE</Text>
+          </View>
+        </View>
+
+        {/* 6. Stock-Market Style Reps Line Graph */}
+        <RepsLineGraph sessions={sessions} />
+
       </ScrollView>
     </SafeAreaView>
   );
@@ -334,21 +536,21 @@ export default function HomeScreen() {
 
 const s = StyleSheet.create({
   safe: { flex: 1 },
-  content: { padding: 20, paddingBottom: 40 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 },
+  content: { padding: 20, paddingBottom: 60 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },
   title: { fontFamily: FONTS.display, fontSize: 30, letterSpacing: 8, fontWeight: '700' },
   subtitle: { fontSize: 11, letterSpacing: 1.5, marginTop: 4, textTransform: 'uppercase' },
   themeBtn: { padding: 8, borderRadius: 10, borderWidth: 1, marginTop: 4 },
-  sectionLabel: { fontSize: 10, letterSpacing: 3, fontWeight: '700', marginBottom: 10 },
-  card: { borderRadius: 14, borderWidth: 1, overflow: 'hidden', marginBottom: 4 },
-  emptyToday: { padding: 28, alignItems: 'center' },
+  sectionLabel: { fontSize: 10, letterSpacing: 3, fontWeight: '700', marginBottom: 8 },
+  card: { borderRadius: 14, borderWidth: 1, overflow: 'hidden', marginBottom: 12 },
+  emptyToday: { padding: 24, alignItems: 'center' },
   emptyTitle: { fontFamily: FONTS.display, fontSize: 17, marginBottom: 8 },
-  emptyText: { fontSize: 13, textAlign: 'center', lineHeight: 20, marginBottom: 20 },
+  emptyText: { fontSize: 13, textAlign: 'center', lineHeight: 20, marginBottom: 16 },
   goBtn: { borderRadius: 10, paddingVertical: 12, paddingHorizontal: 24 },
   goBtnText: { fontWeight: '800', fontSize: 12, letterSpacing: 2 },
-  statsRow: { flexDirection: 'row', padding: 20 },
+  statsRow: { flexDirection: 'row', padding: 18 },
   statBox: { flex: 1, alignItems: 'center' },
-  statNum: { fontFamily: FONTS.display, fontSize: 28, fontWeight: '700' },
+  statNum: { fontFamily: FONTS.display, fontSize: 26, fontWeight: '700' },
   statLabel: { fontSize: 9, letterSpacing: 1.5, marginTop: 4 },
   statDivider: { width: 1, marginVertical: 4 },
   progressBg: { height: 2, marginHorizontal: 20, marginBottom: 16 },
@@ -357,4 +559,17 @@ const s = StyleSheet.create({
   continueBtnText: { fontSize: 11, letterSpacing: 2, fontWeight: '700' },
   lockedBanner: { margin: 16, marginTop: 0, borderRadius: 10, paddingVertical: 12, alignItems: 'center', borderWidth: 1 },
   lockedText: { fontSize: 11, letterSpacing: 2, fontWeight: '700' },
+
+  sideBySideRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
+  halfCard: { flex: 1, padding: 16, borderRadius: 14, borderWidth: 1, alignItems: 'center', gap: 4 },
+  cardEmoji: { fontSize: 22 },
+  halfCardNum: { fontFamily: FONTS.display, fontSize: 26, fontWeight: '700' },
+  halfCardLabel: { fontSize: 9, letterSpacing: 1.5, fontWeight: '700' },
+  fullWidthCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderRadius: 14, borderWidth: 1, marginBottom: 12 },
+  peakLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  peakTitle: { fontFamily: FONTS.display, fontSize: 14, letterSpacing: 1 },
+  peakSub: { fontSize: 11, marginTop: 2 },
+  peakRight: { alignItems: 'flex-end' },
+  peakNum: { fontFamily: FONTS.display, fontSize: 22, fontWeight: '700' },
+  peakLabel: { fontSize: 8, letterSpacing: 1, fontWeight: '700' },
 });
