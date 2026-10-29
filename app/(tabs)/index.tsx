@@ -1,3 +1,4 @@
+// app/(tabs)/index.tsx
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
@@ -11,7 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../constants/ThemeContext';
 import { FONTS } from '../../constants/theme';
-import { calcDensity, getAllSessions, getTodaySession, Session, Sessions } from '../../store/storage';
+import { calcDensity, getAllSessions, getTodaySession, Session, Sessions } from '../../store/sessionStore';
 
 const CELL = 13;
 const GAP = 3;
@@ -40,19 +41,20 @@ function currentQuarterIndex(): number {
   return yearDiff * 4 + quarter;
 }
 
-// ── Reps helpers ──────────────────────────────────────────
+// ── Reps helpers (using cached totalReps) ─────────────────
 
-// Total completed reps for a session (done sets × reps per set)
 function calcDayReps(sessions: Sessions, dateKey: string): number {
   const session = sessions[dateKey];
   if (!session) return 0;
+  if (session.totalReps !== undefined) return session.totalReps;
+  
+  // Fallback calculation for legacy sessions
   return session.exercises.reduce((total, ex) => {
     const doneSets = ex.setsData.filter((s) => s.done).length;
     return total + doneSets * ex.reps;
   }, 0);
 }
 
-// Max reps done in any single day across the whole quarter
 function calcQuarterMaxReps(sessions: Sessions, quarterIndex: number): number {
   const { startMonth, year } = getQuarterInfo(quarterIndex);
   const quarterStart = new Date(year, startMonth, 1);
@@ -73,7 +75,7 @@ function calcQuarterMaxReps(sessions: Sessions, quarterIndex: number): number {
 
 type GridCell = {
   dateKey: string;
-  reps: number | null; // null = future, -1 = isEmpty padding
+  reps: number | null;
   isToday: boolean;
   isEmpty: boolean;
 };
@@ -117,8 +119,6 @@ function buildQuarterGrid(sessions: Sessions, quarterIndex: number): GridCell[][
   return weeks;
 }
 
-// ── Streak ────────────────────────────────────────────────
-
 function calcStreak(sessions: Sessions): number {
   let streak = 0;
   for (let i = 0; i < 365; i++) {
@@ -138,8 +138,6 @@ function calcStreak(sessions: Sessions): number {
   return streak;
 }
 
-// ── Heatmap ───────────────────────────────────────────────
-
 const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
 function Heatmap({ sessions }: { sessions: Sessions }) {
@@ -149,15 +147,13 @@ function Heatmap({ sessions }: { sessions: Sessions }) {
   const grid = buildQuarterGrid(sessions, quarterIndex);
   const streak = calcStreak(sessions);
   const { label } = getQuarterInfo(quarterIndex);
-
-  // Quarter max reps — recalculated when quarter changes
   const quarterMax = calcQuarterMaxReps(sessions, quarterIndex);
 
   function repColor(reps: number | null, isEmpty: boolean): string {
     if (isEmpty) return C.bg;
-    if (reps === null) return C.surface2;  // future day
-    if (reps === 0) return C.surface2;     // no workout
-    if (quarterMax === 0) return C.green1; // safety fallback
+    if (reps === null) return C.surface2;
+    if (reps === 0) return C.surface2;
+    if (quarterMax === 0) return C.green1;
     const pct = reps / quarterMax;
     if (pct <= 0.25) return C.green1;
     if (pct <= 0.5) return C.green2;
@@ -244,8 +240,6 @@ const hm = StyleSheet.create({
   legendCell: { width: 10, height: 10, borderRadius: 2 },
 });
 
-// ── Main ──────────────────────────────────────────────────
-
 export default function HomeScreen() {
   const router = useRouter();
   const { C, isDark, toggleTheme } = useTheme();
@@ -254,10 +248,8 @@ export default function HomeScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      (async () => {
-        setSessions(await getAllSessions());
-        setTodaySession(await getTodaySession());
-      })();
+      setSessions(getAllSessions());
+      setTodaySession(getTodaySession());
     }, [])
   );
 
@@ -272,7 +264,6 @@ export default function HomeScreen() {
     <SafeAreaView style={[s.safe, { backgroundColor: C.bg }]}>
       <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
 
-        {/* Header */}
         <View style={s.header}>
           <View>
             <Text style={[s.title, { color: C.green4 }]}>GYMBOOK</Text>
@@ -285,13 +276,11 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Heatmap */}
         <Text style={[s.sectionLabel, { color: C.textMuted }]}>CONSISTENCY</Text>
         <View style={[s.card, { backgroundColor: C.surface, borderColor: C.border }]}>
           <Heatmap sessions={sessions} />
         </View>
 
-        {/* Today */}
         <Text style={[s.sectionLabel, { color: C.textMuted, marginTop: 24 }]}>TODAY</Text>
         <View style={[s.card, { backgroundColor: C.surface, borderColor: C.border }]}>
           {!todaySession ? (
