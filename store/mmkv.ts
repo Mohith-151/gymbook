@@ -1,35 +1,33 @@
 // store/mmkv.ts
-import { MMKV } from 'react-native-mmkv';
+import { createMMKV, type MMKV } from 'react-native-mmkv';
 
 let _storage: MMKV | null = null;
 
+function getStorage(): MMKV {
+  if (!_storage) _storage = createMMKV();
+  return _storage;
+}
+
 export const storage = {
   set(key: string, value: string | number | boolean) {
-    if (!_storage) _storage = new MMKV();
-    _storage.set(key, value);
+    getStorage().set(key, value);
   },
   getString(key: string): string | undefined {
-    if (!_storage) _storage = new MMKV();
-    return _storage.getString(key);
+    return getStorage().getString(key);
   },
   getNumber(key: string): number | undefined {
-    if (!_storage) _storage = new MMKV();
-    return _storage.getNumber(key);
+    return getStorage().getNumber(key);
   },
   getBoolean(key: string): boolean | undefined {
-    if (!_storage) _storage = new MMKV();
-    return _storage.getBoolean(key);
+    return getStorage().getBoolean(key);
   },
   delete(key: string) {
-    if (!_storage) _storage = new MMKV();
-    _storage.delete(key);
+    getStorage().remove(key);
   },
   clearAll() {
-    if (!_storage) _storage = new MMKV();
-    _storage.clearAll();
+    getStorage().clearAll();
   },
   getAllKeys(): string[] {
-    if (!_storage) _storage = new MMKV();
-    return _storage.getAllKeys();
-  }
+    return getStorage().getAllKeys();
+  },
 };
