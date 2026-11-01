@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
+  Image,
   Modal,
   ScrollView,
   StatusBar,
@@ -87,7 +88,10 @@ export default function TemplatesScreen() {
   }
 
   function addFromLibrary(ex: Exercise) {
-    setTExercises((prev) => [...prev, { name: ex.name, sets: ex.sets, reps: ex.reps }]);
+    setTExercises((prev) => [
+      ...prev,
+      { name: ex.name, sets: ex.sets, reps: ex.reps, imageUri: ex.imageUri },
+    ]);
     setAddMode(false);
   }
 
@@ -95,7 +99,11 @@ export default function TemplatesScreen() {
     if (!exName.trim()) return;
     setTExercises((prev) => [
       ...prev,
-      { name: exName.trim(), sets: parseInt(exSets, 10) || 1, reps: parseInt(exReps, 10) || 1 },
+      {
+        name: exName.trim(),
+        sets: parseInt(exSets, 10) || 1,
+        reps: parseInt(exReps, 10) || 1,
+      },
     ]);
     setExName('');
     setExSets('3');
@@ -122,7 +130,6 @@ export default function TemplatesScreen() {
               </Text>
             </View>
             <View style={s.cardActions}>
-              {/* RESTORED: Edit template button */}
               <TouchableOpacity onPress={() => openEdit(tpl)} style={s.iconBtn}>
                 <Ionicons name="pencil-outline" size={18} color={C.green3} />
               </TouchableOpacity>
@@ -162,9 +169,15 @@ export default function TemplatesScreen() {
                 <View style={s.exList}>
                   {tExercises.map((ex, idx) => (
                     <View key={idx} style={[s.exRow, { backgroundColor: C.bg, borderColor: C.border }]}>
-                      <Text style={[s.exRowTxt, { color: C.textPrimary }]}>
-                        {ex.name} ({ex.sets}×{ex.reps})
-                      </Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                        <Image
+                          source={ex.imageUri ? { uri: ex.imageUri } : require('../../assets/images/icon.png')}
+                          style={s.rowThumb}
+                        />
+                        <Text style={[s.exRowTxt, { color: C.textPrimary }]} numberOfLines={1}>
+                          {ex.name} ({ex.sets}×{ex.reps})
+                        </Text>
+                      </View>
                       <TouchableOpacity onPress={() => setTExercises(tExercises.filter((_, i) => i !== idx))}>
                         <Ionicons name="close-circle" size={16} color={C.textMuted} />
                       </TouchableOpacity>
@@ -186,6 +199,10 @@ export default function TemplatesScreen() {
                           style={[s.chip, { backgroundColor: C.surface, borderColor: C.border }]}
                           onPress={() => addFromLibrary(item)}
                         >
+                          <Image
+                            source={item.imageUri ? { uri: item.imageUri } : require('../../assets/images/icon.png')}
+                            style={s.chipThumb}
+                          />
                           <Text style={[s.chipTxt, { color: C.textPrimary }]}>{item.name}</Text>
                         </TouchableOpacity>
                       ))}
@@ -259,13 +276,15 @@ const s = StyleSheet.create({
   input: { borderWidth: 1, borderRadius: 8, padding: 12, fontSize: 14 },
   exList: { gap: 6, maxHeight: 120 },
   exRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 10, borderRadius: 6, borderWidth: 1 },
-  exRowTxt: { fontSize: 12, fontWeight: '600' },
+  rowThumb: { width: 24, height: 24, borderRadius: 4 },
+  exRowTxt: { fontSize: 12, fontWeight: '600', flex: 1 },
   addBtn: { borderWidth: 1, borderRadius: 8, paddingVertical: 10, alignItems: 'center' },
   addBtnTxt: { fontSize: 11, fontWeight: '700', letterSpacing: 1 },
   addBox: { borderWidth: 1, borderRadius: 10, padding: 12, gap: 8 },
   addBoxTitle: { fontSize: 9, letterSpacing: 1, fontWeight: '700' },
   libScroll: { flexDirection: 'row', gap: 8 },
-  chip: { borderWidth: 1, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6, marginRight: 6 },
+  chip: { borderWidth: 1, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6, marginRight: 6, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  chipThumb: { width: 16, height: 16, borderRadius: 8 },
   chipTxt: { fontSize: 11, fontWeight: '600' },
   modalActions: { flexDirection: 'row', gap: 12, marginTop: 8 },
   btnCancel: { flex: 1, borderWidth: 1, borderRadius: 8, paddingVertical: 12, alignItems: 'center' },

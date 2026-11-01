@@ -6,6 +6,7 @@ export type Exercise = {
   name: string;
   sets: number;
   reps: number;
+  imageUri?: string;
 };
 
 const EXERCISES_KEY = 'gymbook:exercises';
