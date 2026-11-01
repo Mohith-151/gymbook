@@ -32,6 +32,7 @@ export default function TemplatesScreen() {
   const [library, setLibrary] = useState<Exercise[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
 
+  const [editId, setEditId] = useState<string | null>(null);
   const [tName, setTName] = useState('');
   const [tExercises, setTExercises] = useState<TemplateExercise[]>([]);
 
@@ -53,8 +54,17 @@ export default function TemplatesScreen() {
   );
 
   function openCreate() {
+    setEditId(null);
     setTName('');
     setTExercises([]);
+    setAddMode(false);
+    setModalVisible(true);
+  }
+
+  function openEdit(tpl: Template) {
+    setEditId(tpl.id);
+    setTName(tpl.name);
+    setTExercises([...tpl.exercises]);
     setAddMode(false);
     setModalVisible(true);
   }
@@ -62,7 +72,7 @@ export default function TemplatesScreen() {
   function handleSaveTemplate() {
     if (!tName.trim() || !tExercises.length) return;
     const template: Template = {
-      id: newId(),
+      id: editId ?? newId(),
       name: tName.trim(),
       exercises: tExercises,
     };
@@ -111,9 +121,15 @@ export default function TemplatesScreen() {
                 {tpl.exercises.length} EXERCISES
               </Text>
             </View>
-            <TouchableOpacity onPress={() => handleDelete(tpl.id)} style={s.iconBtn}>
-              <Ionicons name="trash-outline" size={18} color="#f85149" />
-            </TouchableOpacity>
+            <View style={s.cardActions}>
+              {/* RESTORED: Edit template button */}
+              <TouchableOpacity onPress={() => openEdit(tpl)} style={s.iconBtn}>
+                <Ionicons name="pencil-outline" size={18} color={C.green3} />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => handleDelete(tpl.id)} style={s.iconBtn}>
+                <Ionicons name="trash-outline" size={18} color="#f85149" />
+              </TouchableOpacity>
+            </View>
           </View>
         ))}
       </ScrollView>
@@ -129,7 +145,9 @@ export default function TemplatesScreen() {
           <View style={s.modalOverlay}>
             <TouchableWithoutFeedback>
               <View style={[s.modalContent, { backgroundColor: C.surface, borderColor: C.border, paddingTop: (StatusBar.currentHeight || 20) + 16 }]}>
-                <Text style={[s.modalTitle, { color: C.textPrimary }]}>NEW TEMPLATE</Text>
+                <Text style={[s.modalTitle, { color: C.textPrimary }]}>
+                  {editId ? 'EDIT TEMPLATE' : 'NEW TEMPLATE'}
+                </Text>
 
                 <TextInput
                   style={[s.input, { backgroundColor: C.bg, borderColor: C.border, color: C.textPrimary }]}
@@ -230,6 +248,7 @@ const s = StyleSheet.create({
   list: { padding: 20, paddingBottom: 100, gap: 12 },
   card: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderRadius: 12, borderWidth: 1 },
   cardLeft: { flex: 1 },
+  cardActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   tplName: { fontSize: 16, fontWeight: '700', marginBottom: 4 },
   tplCount: { fontSize: 11, letterSpacing: 1, fontWeight: '700' },
   iconBtn: { padding: 6 },

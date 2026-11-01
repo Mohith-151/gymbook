@@ -200,6 +200,7 @@ function Heatmap({ sessions }: { sessions: Sessions }) {
   const grid = buildQuarterGrid(sessions, quarterIndex);
   const { label } = getQuarterInfo(quarterIndex);
   const quarterMax = calcQuarterMaxReps(sessions, quarterIndex);
+  const currentStreak = calcStreak(sessions);
 
   function repColor(reps: number | null, isEmpty: boolean): string {
     if (isEmpty) return C.bg;
@@ -214,14 +215,24 @@ function Heatmap({ sessions }: { sessions: Sessions }) {
 
   return (
     <View>
+      {/* Header row containing Quarter navigation and Current Streak badge side-by-side */}
       <View style={hm.nav}>
-        <TouchableOpacity onPress={() => setQuarterIndex((q) => q - 1)} style={hm.navBtn} disabled={quarterIndex <= 0}>
-          <Text style={[hm.navTxt, { color: quarterIndex <= 0 ? C.textDim : C.green4 }]}>‹</Text>
-        </TouchableOpacity>
-        <Text style={[hm.quarterLabel, { color: C.textSecondary }]}>{label}</Text>
-        <TouchableOpacity onPress={() => setQuarterIndex((q) => q + 1)} style={hm.navBtn} disabled={quarterIndex >= maxQ}>
-          <Text style={[hm.navTxt, { color: quarterIndex >= maxQ ? C.textDim : C.green4 }]}>›</Text>
-        </TouchableOpacity>
+        <View style={hm.quarterNavGroup}>
+          <TouchableOpacity onPress={() => setQuarterIndex((q) => q - 1)} style={hm.navBtn} disabled={quarterIndex <= 0}>
+            <Text style={[hm.navTxt, { color: quarterIndex <= 0 ? C.textDim : C.green4 }]}>‹</Text>
+          </TouchableOpacity>
+          <Text style={[hm.quarterLabel, { color: C.textSecondary }]}>{label}</Text>
+          <TouchableOpacity onPress={() => setQuarterIndex((q) => q + 1)} style={hm.navBtn} disabled={quarterIndex >= maxQ}>
+            <Text style={[hm.navTxt, { color: quarterIndex >= maxQ ? C.textDim : C.green4 }]}>›</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Current Streak Counter right beside the heatmap navigation */}
+        <View style={[hm.streakBadge, { backgroundColor: C.surface2, borderColor: C.border }]}>
+          <Text style={hm.streakEmoji}>🔥</Text>
+          <Text style={[hm.streakNum, { color: C.green4 }]}>{currentStreak}</Text>
+          <Text style={[hm.streakLabel, { color: C.textMuted }]}>DAY STREAK</Text>
+        </View>
       </View>
 
       <View style={hm.wrap}>
@@ -261,9 +272,14 @@ function Heatmap({ sessions }: { sessions: Sessions }) {
 
 const hm = StyleSheet.create({
   nav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 14, paddingTop: 10 },
+  quarterNavGroup: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   navBtn: { padding: 4 },
   navTxt: { fontSize: 22, fontWeight: '700' },
   quarterLabel: { fontSize: 11, letterSpacing: 2, fontWeight: '700' },
+  streakBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 1 },
+  streakEmoji: { fontSize: 12 },
+  streakNum: { fontFamily: FONTS.display, fontSize: 14, fontWeight: '700' },
+  streakLabel: { fontSize: 8, letterSpacing: 1, fontWeight: '700' },
   wrap: { flexDirection: 'row', paddingVertical: 8, paddingHorizontal: 14 },
   labels: { justifyContent: 'space-between', marginRight: 5 },
   label: { fontSize: 9, height: CELL + GAP, textAlignVertical: 'center' },

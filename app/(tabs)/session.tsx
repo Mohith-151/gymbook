@@ -208,7 +208,8 @@ export default function SessionScreen() {
           })
         )}
 
-        {session && !session.locked && (
+        {/* RESTORED: Add Exercise Button available anytime session is unlocked */}
+        {(!session || !session.locked) && (
           <TouchableOpacity style={[s.addExBtn, { borderColor: C.green3 }]} onPress={openAddModal}>
             <Text style={[s.addExTxt, { color: C.green3 }]}>+ ADD EXERCISE</Text>
           </TouchableOpacity>
