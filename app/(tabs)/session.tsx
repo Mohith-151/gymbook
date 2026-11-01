@@ -1,4 +1,5 @@
 // app/(tabs)/session.tsx
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
@@ -33,6 +34,13 @@ export default function SessionScreen() {
   const [session, setSession] = useState<Session | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [confirmLockVisible, setConfirmLockVisible] = useState(false);
+
+  // Edit Exercise Modal State
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editingExId, setEditingExId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editSets, setEditSets] = useState('3');
+  const [editReps, setEditReps] = useState('10');
 
   const [activeTab, setActiveTab] = useState<'library' | 'templates' | 'manual'>('library');
   const [library, setLibrary] = useState<Exercise[]>([]);
@@ -75,6 +83,48 @@ export default function SessionScreen() {
     const updated = { ...session, exercises: sortExercises(updatedExercises) };
     setSession(updated);
     saveSession(updated);
+  }
+
+  function deleteExercise(exId: string) {
+    if (!session || session.locked) return;
+    const updatedExercises = session.exercises.filter((ex) => ex.id !== exId);
+    const updated = { ...session, exercises: updatedExercises };
+    setSession(updated);
+    saveSession(updated);
+  }
+
+  function openEditExercise(ex: SessionExercise) {
+    if (!session || session.locked) return;
+    setEditingExId(ex.id);
+    setEditName(ex.name);
+    setEditSets(String(ex.sets));
+    setEditReps(String(ex.reps));
+    setEditModalVisible(true);
+  }
+
+  function saveEditedExercise() {
+    if (!session || !editingExId || !editName.trim()) return;
+    const numSets = parseInt(editSets, 10) || 1;
+    const numReps = parseInt(editReps, 10) || 1;
+
+    const updatedExercises = session.exercises.map((ex) => {
+      if (ex.id !== editingExId) return ex;
+      // Re-initialize setsData if set count changed, preserving previous done states where possible
+      const newSetsData = Array(numSets).fill(false).map((_, idx) => ex.setsData[idx] || { done: false });
+      return {
+        ...ex,
+        name: editName.trim(),
+        sets: numSets,
+        reps: numReps,
+        setsData: newSetsData,
+      };
+    });
+
+    const updated = { ...session, exercises: sortExercises(updatedExercises) };
+    setSession(updated);
+    saveSession(updated);
+    setEditModalVisible(false);
+    setEditingExId(null);
   }
 
   function openAddModal() {
@@ -177,10 +227,24 @@ export default function SessionScreen() {
                 ]}
               >
                 <View style={s.exHeader}>
-                  <Text style={[s.exName, { color: C.textPrimary }]}>{ex.name}</Text>
-                  <Text style={[s.exMeta, { color: C.textMuted }]}>
-                    {ex.sets} SETS × {ex.reps} REPS
-                  </Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[s.exName, { color: C.textPrimary }]}>{ex.name}</Text>
+                    <Text style={[s.exMeta, { color: C.textMuted }]}>
+                      {ex.sets} SETS × {ex.reps} REPS
+                    </Text>
+                  </View>
+
+                  {/* Exercise Edit & Delete Buttons */}
+                  {(!session || !session.locked) && (
+                    <View style={s.exActions}>
+                      <TouchableOpacity onPress={() => openEditExercise(ex)} style={s.actionBtn}>
+                        <Ionicons name="pencil-outline" size={16} color={C.green3} />
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => deleteExercise(ex.id)} style={s.actionBtn}>
+                        <Ionicons name="trash-outline" size={16} color="#f85149" />
+                      </TouchableOpacity>
+                    </View>
+                  )}
                 </View>
 
                 <View style={s.setsRow}>
@@ -208,7 +272,6 @@ export default function SessionScreen() {
           })
         )}
 
-        {/* RESTORED: Add Exercise Button available anytime session is unlocked */}
         {(!session || !session.locked) && (
           <TouchableOpacity style={[s.addExBtn, { borderColor: C.green3 }]} onPress={openAddModal}>
             <Text style={[s.addExTxt, { color: C.green3 }]}>+ ADD EXERCISE</Text>
@@ -314,6 +377,54 @@ export default function SessionScreen() {
         </TouchableWithoutFeedback>
       </Modal>
 
+      {/* Edit Exercise Modal */}
+      <Modal visible={editModalVisible} animationType="slide" transparent>
+        <TouchableWithoutFeedback onPress={() => setEditModalVisible(false)}>
+          <View style={s.modalOverlay}>
+            <TouchableWithoutFeedback>
+              <View style={[s.modalContent, { backgroundColor: C.surface, borderColor: C.border, paddingTop: (StatusBar.currentHeight || 20) + 16 }]}>
+                <Text style={[s.modalTitle, { color: C.textPrimary }]}>EDIT EXERCISE</Text>
+                <View style={{ gap: 10 }}>
+                  <TextInput
+                    style={[s.input, { backgroundColor: C.bg, borderColor: C.border, color: C.textPrimary }]}
+                    placeholder="Exercise Name"
+                    placeholderTextColor={C.textMuted}
+                    value={editName}
+                    onChangeText={setEditName}
+                  />
+                  <View style={{ flexDirection: 'row', gap: 10 }}>
+                    <TextInput
+                      style={[s.input, { flex: 1, backgroundColor: C.bg, borderColor: C.border, color: C.textPrimary }]}
+                      keyboardType="number-pad"
+                      placeholder="Sets"
+                      placeholderTextColor={C.textMuted}
+                      value={editSets}
+                      onChangeText={setEditSets}
+                    />
+                    <TextInput
+                      style={[s.input, { flex: 1, backgroundColor: C.bg, borderColor: C.border, color: C.textPrimary }]}
+                      keyboardType="number-pad"
+                      placeholder="Reps"
+                      placeholderTextColor={C.textMuted}
+                      value={editReps}
+                      onChangeText={setEditReps}
+                    />
+                  </View>
+                  <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
+                    <TouchableOpacity style={[s.btnCancel, { flex: 1, borderColor: C.border }]} onPress={() => setEditModalVisible(false)}>
+                      <Text style={[s.btnCancelTxt, { color: C.textMuted }]}>CANCEL</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[s.btnSave, { flex: 1, backgroundColor: C.green4 }]} onPress={saveEditedExercise}>
+                      <Text style={s.btnSaveTxt}>SAVE CHANGES</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
       {/* Lock Confirmation Modal */}
       <Modal visible={confirmLockVisible} animationType="fade" transparent>
         <View style={s.centerModalOverlay}>
@@ -349,9 +460,11 @@ const s = StyleSheet.create({
   emptyBox: { padding: 40, alignItems: 'center' },
   emptyTxt: { fontSize: 13, textAlign: 'center' },
   exCard: { padding: 16, borderRadius: 12, borderWidth: 1, gap: 12 },
-  exHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  exHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   exName: { fontSize: 16, fontWeight: '700' },
-  exMeta: { fontSize: 11, letterSpacing: 1 },
+  exMeta: { fontSize: 11, letterSpacing: 1, marginTop: 2 },
+  exActions: { flexDirection: 'row', gap: 4, alignItems: 'center' },
+  actionBtn: { padding: 6 },
   setsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   setChip: { width: 36, height: 36, borderRadius: 8, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   setChipTxt: { fontSize: 12, fontWeight: '800' },
@@ -362,6 +475,7 @@ const s = StyleSheet.create({
   lockBtnTxt: { color: '#000', fontSize: 12, fontWeight: '800', letterSpacing: 2 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-start' },
   modalContent: { borderBottomLeftRadius: 20, borderBottomRightRadius: 20, borderWidth: 1, padding: 20, gap: 14 },
+  modalTitle: { fontFamily: FONTS.display, fontSize: 18, letterSpacing: 2, marginBottom: 4 },
   tabHeader: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#333', marginBottom: 10 },
   tabBtn: { flex: 1, paddingVertical: 8, alignItems: 'center' },
   tabTxt: { fontSize: 11, fontWeight: '700', letterSpacing: 1 },
@@ -369,12 +483,12 @@ const s = StyleSheet.create({
   pickName: { fontSize: 14, fontWeight: '600' },
   pickMeta: { fontSize: 12, fontWeight: '700' },
   input: { borderWidth: 1, borderRadius: 8, padding: 12, fontSize: 14 },
-  btnSave: { borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
+  btnSave: { borderRadius: 8, paddingVertical: 12, alignItems: 'center', justifyContent: 'center' },
   btnSaveTxt: { color: '#000', fontSize: 12, fontWeight: '800', letterSpacing: 1 },
   centerModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', padding: 20 },
   confirmBox: { borderRadius: 16, borderWidth: 1, padding: 20, gap: 12 },
   confirmTitle: { fontFamily: FONTS.display, fontSize: 18, letterSpacing: 2 },
   confirmTxt: { fontSize: 13, lineHeight: 18 },
-  btnCancel: { borderWidth: 1, borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
+  btnCancel: { borderWidth: 1, borderRadius: 8, paddingVertical: 12, alignItems: 'center', justifyContent: 'center' },
   btnCancelTxt: { fontSize: 12, fontWeight: '700', letterSpacing: 1 },
 });

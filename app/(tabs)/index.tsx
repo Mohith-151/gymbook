@@ -114,7 +114,6 @@ function calcStreak(sessions: Sessions): number {
   return streak;
 }
 
-// Calculates All-Time Maximum Streak record
 function calcMaxStreak(sessions: Sessions): number {
   const keys = Object.keys(sessions).filter((k) => sessions[k].locked).sort();
   if (keys.length === 0) return 0;
@@ -215,56 +214,58 @@ function Heatmap({ sessions }: { sessions: Sessions }) {
 
   return (
     <View>
-      {/* Header row containing Quarter navigation and Current Streak badge side-by-side */}
       <View style={hm.nav}>
-        <View style={hm.quarterNavGroup}>
-          <TouchableOpacity onPress={() => setQuarterIndex((q) => q - 1)} style={hm.navBtn} disabled={quarterIndex <= 0}>
-            <Text style={[hm.navTxt, { color: quarterIndex <= 0 ? C.textDim : C.green4 }]}>‹</Text>
-          </TouchableOpacity>
-          <Text style={[hm.quarterLabel, { color: C.textSecondary }]}>{label}</Text>
-          <TouchableOpacity onPress={() => setQuarterIndex((q) => q + 1)} style={hm.navBtn} disabled={quarterIndex >= maxQ}>
-            <Text style={[hm.navTxt, { color: quarterIndex >= maxQ ? C.textDim : C.green4 }]}>›</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Current Streak Counter right beside the heatmap navigation */}
-        <View style={[hm.streakBadge, { backgroundColor: C.surface2, borderColor: C.border }]}>
-          <Text style={hm.streakEmoji}>🔥</Text>
-          <Text style={[hm.streakNum, { color: C.green4 }]}>{currentStreak}</Text>
-          <Text style={[hm.streakLabel, { color: C.textMuted }]}>DAY STREAK</Text>
-        </View>
+        <TouchableOpacity onPress={() => setQuarterIndex((q) => q - 1)} style={hm.navBtn} disabled={quarterIndex <= 0}>
+          <Text style={[hm.navTxt, { color: quarterIndex <= 0 ? C.textDim : C.green4 }]}>‹</Text>
+        </TouchableOpacity>
+        <Text style={[hm.quarterLabel, { color: C.textSecondary }]}>{label}</Text>
+        <TouchableOpacity onPress={() => setQuarterIndex((q) => q + 1)} style={hm.navBtn} disabled={quarterIndex >= maxQ}>
+          <Text style={[hm.navTxt, { color: quarterIndex >= maxQ ? C.textDim : C.green4 }]}>›</Text>
+        </TouchableOpacity>
       </View>
 
-      <View style={hm.wrap}>
-        <View style={hm.labels}>
-          {DAY_LABELS.map((l, i) => (
-            <Text key={i} style={[hm.label, { color: C.textDim }]}>{l}</Text>
-          ))}
-        </View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={hm.scroll}>
-          {grid.map((week, wi) => (
-            <View key={wi} style={hm.col}>
-              {week.map((cell, di) => (
-                <View
-                  key={di}
-                  style={[
-                    hm.cell,
-                    { backgroundColor: repColor(cell.reps, cell.isEmpty) },
-                    cell.isToday && { borderWidth: 2, borderColor: C.green4 },
-                  ]}
-                />
+      {/* Main Row layout: Heatmap grid on left, Original Streak block on right */}
+      <View style={hm.bodyRow}>
+        <View style={hm.heatmapArea}>
+          <View style={hm.wrap}>
+            <View style={hm.labels}>
+              {DAY_LABELS.map((l, i) => (
+                <Text key={i} style={[hm.label, { color: C.textDim }]}>{l}</Text>
               ))}
             </View>
-          ))}
-        </ScrollView>
-      </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={hm.scroll}>
+              {grid.map((week, wi) => (
+                <View key={wi} style={hm.col}>
+                  {week.map((cell, di) => (
+                    <View
+                      key={di}
+                      style={[
+                        hm.cell,
+                        { backgroundColor: repColor(cell.reps, cell.isEmpty) },
+                        cell.isToday && { borderWidth: 2, borderColor: C.green4 },
+                      ]}
+                    />
+                  ))}
+                </View>
+              ))}
+            </ScrollView>
+          </View>
 
-      <View style={hm.legend}>
-        <Text style={[hm.legendTxt, { color: C.textDim }]}>Less</Text>
-        {([C.surface2, C.green1, C.green2, C.green3, C.green4] as string[]).map((c, i) => (
-          <View key={i} style={[hm.legendCell, { backgroundColor: c }]} />
-        ))}
-        <Text style={[hm.legendTxt, { color: C.textDim }]}>More</Text>
+          <View style={hm.legend}>
+            <Text style={[hm.legendTxt, { color: C.textDim }]}>Less</Text>
+            {([C.surface2, C.green1, C.green2, C.green3, C.green4] as string[]).map((c, i) => (
+              <View key={i} style={[hm.legendCell, { backgroundColor: c }]} />
+            ))}
+            <Text style={[hm.legendTxt, { color: C.textDim }]}>More</Text>
+          </View>
+        </View>
+
+        {/* Original Style Streak Box on the Right */}
+        <View style={hm.streakBox}>
+          <Text style={[hm.streakNum, { color: C.textPrimary }]}>{currentStreak}</Text>
+          <Text style={hm.streakEmoji}>🔥</Text>
+          <Text style={[hm.streakText, { color: C.textMuted }]}>STREAK</Text>
+        </View>
       </View>
     </View>
   );
@@ -272,14 +273,11 @@ function Heatmap({ sessions }: { sessions: Sessions }) {
 
 const hm = StyleSheet.create({
   nav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 14, paddingTop: 10 },
-  quarterNavGroup: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   navBtn: { padding: 4 },
   navTxt: { fontSize: 22, fontWeight: '700' },
   quarterLabel: { fontSize: 11, letterSpacing: 2, fontWeight: '700' },
-  streakBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 1 },
-  streakEmoji: { fontSize: 12 },
-  streakNum: { fontFamily: FONTS.display, fontSize: 14, fontWeight: '700' },
-  streakLabel: { fontSize: 8, letterSpacing: 1, fontWeight: '700' },
+  bodyRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingRight: 16 },
+  heatmapArea: { flex: 1 },
   wrap: { flexDirection: 'row', paddingVertical: 8, paddingHorizontal: 14 },
   labels: { justifyContent: 'space-between', marginRight: 5 },
   label: { fontSize: 9, height: CELL + GAP, textAlignVertical: 'center' },
@@ -289,6 +287,10 @@ const hm = StyleSheet.create({
   legend: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 14, paddingBottom: 12 },
   legendTxt: { fontSize: 9, marginHorizontal: 2 },
   legendCell: { width: 10, height: 10, borderRadius: 2 },
+  streakBox: { alignItems: 'center', paddingLeft: 10, minWidth: 65 },
+  streakNum: { fontFamily: FONTS.display, fontSize: 32, fontWeight: '700', lineHeight: 36 },
+  streakEmoji: { fontSize: 18, marginVertical: 2 },
+  streakText: { fontSize: 9, letterSpacing: 2, fontWeight: '700' },
 });
 
 // ── Interactive Stock-Market Line Chart ────────────────────
