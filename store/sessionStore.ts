@@ -9,6 +9,7 @@ export type SessionExercise = {
   sets: number;
   reps: number;
   setsData: SetData[];
+  imageUri?: string;
 };
 
 export type Session = {

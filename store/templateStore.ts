@@ -5,6 +5,7 @@ export type TemplateExercise = {
   name: string;
   sets: number;
   reps: number;
+  imageUri?: string;
 };
 
 export type Template = {

@@ -1,6 +1,6 @@
 // app/(tabs)/session.tsx
 import { Ionicons } from '@expo/vector-icons';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
@@ -79,8 +79,11 @@ export default function SessionScreen() {
   // Permanent Sandbox Storage Copy Helper
   async function persistImageToSandbox(tempUri: string): Promise<string> {
     try {
+      const docDir = FileSystem.documentDirectory;
+      if (!docDir) return tempUri;
+      
       const fileName = `gymbook_ex_${Date.now()}.jpg`;
-      const permanentUri = `${FileSystem.documentDirectory}${fileName}`;
+      const permanentUri = `${docDir}${fileName}`;
       await FileSystem.copyAsync({
         from: tempUri,
         to: permanentUri,
@@ -88,9 +91,9 @@ export default function SessionScreen() {
       return permanentUri;
     } catch (error) {
       console.error('Failed to save permanent image copy:', error);
-      return tempUri; // Fallback to original temp uri if copy fails
+      return tempUri;
     }
-  }
+}
 
   async function pickImage(setter: (uri?: string) => void) {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -276,10 +279,13 @@ export default function SessionScreen() {
               >
                 <View style={s.exHeader}>
                   <View style={s.exHeaderLeft}>
-                    <Image
-                      source={ex.imageUri ? { uri: ex.imageUri } : require('../../assets/images/icon.png')}
-                      style={s.exThumb}
-                    />
+                    {ex.imageUri ? (
+                      <Image source={{ uri: ex.imageUri }} style={s.exThumb} />
+                    ) : (
+                      <View style={[s.exThumbPlaceholder, { backgroundColor: C.bg, borderColor: C.border }]}>
+                        <Ionicons name="barbell-outline" size={18} color={C.green3} />
+                      </View>
+                    )}
                     <View style={{ flex: 1 }}>
                       <Text style={[s.exName, { color: C.textPrimary }]}>{ex.name}</Text>
                       <Text style={[s.exMeta, { color: C.textMuted }]}>
@@ -370,10 +376,13 @@ export default function SessionScreen() {
                         onPress={() => addExerciseFromLib(item)}
                       >
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
-                          <Image
-                            source={item.imageUri ? { uri: item.imageUri } : require('../../assets/images/icon.png')}
-                            style={s.pickThumb}
-                          />
+                          {item.imageUri ? (
+                            <Image source={{ uri: item.imageUri }} style={s.pickThumb} />
+                          ) : (
+                            <View style={[s.pickThumbPlaceholder, { backgroundColor: C.bg, borderColor: C.border }]}>
+                              <Ionicons name="barbell-outline" size={14} color={C.green3} />
+                            </View>
+                          )}
                           <Text style={[s.pickName, { color: C.textPrimary }]}>{item.name}</Text>
                         </View>
                         <Text style={[s.pickMeta, { color: C.textMuted }]}>{item.sets}×{item.reps}</Text>
@@ -403,10 +412,14 @@ export default function SessionScreen() {
                       style={[s.imgPickBtn, { backgroundColor: C.bg, borderColor: C.border }]}
                       onPress={() => pickImage(setMImageUri)}
                     >
-                      <Image
-                        source={mImageUri ? { uri: mImageUri } : require('../../assets/images/icon.png')}
-                        style={s.pickerPreview}
-                      />
+                      {mImageUri ? (
+                        <Image source={{ uri: mImageUri }} style={s.pickerPreview} />
+                      ) : (
+                        <View style={s.pickerPlaceholder}>
+                          <Ionicons name="image-outline" size={20} color={C.green3} />
+                          <Text style={[s.pickerTxt, { color: C.green3 }]}>ATTACH IMAGE</Text>
+                        </View>
+                      )}
                     </TouchableOpacity>
 
                     <TextInput
@@ -457,10 +470,14 @@ export default function SessionScreen() {
                     style={[s.imgPickBtn, { backgroundColor: C.bg, borderColor: C.border }]}
                     onPress={() => pickImage(setEditImageUri)}
                   >
-                    <Image
-                      source={editImageUri ? { uri: editImageUri } : require('../../assets/images/icon.png')}
-                      style={s.pickerPreview}
-                    />
+                    {editImageUri ? (
+                      <Image source={{ uri: editImageUri }} style={s.pickerPreview} />
+                    ) : (
+                      <View style={s.pickerPlaceholder}>
+                        <Ionicons name="image-outline" size={20} color={C.green3} />
+                        <Text style={[s.pickerTxt, { color: C.green3 }]}>CHANGE IMAGE</Text>
+                      </View>
+                    )}
                   </TouchableOpacity>
 
                   <TextInput
@@ -541,6 +558,7 @@ const s = StyleSheet.create({
   exHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   exHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
   exThumb: { width: 40, height: 40, borderRadius: 8 },
+  exThumbPlaceholder: { width: 40, height: 40, borderRadius: 8, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   exName: { fontSize: 16, fontWeight: '700' },
   exMeta: { fontSize: 11, letterSpacing: 1, marginTop: 2 },
   exActions: { flexDirection: 'row', gap: 4, alignItems: 'center' },
@@ -551,6 +569,8 @@ const s = StyleSheet.create({
   addExBtn: { borderWidth: 1, borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginTop: 8 },
   addExTxt: { fontSize: 11, letterSpacing: 2, fontWeight: '700' },
   imgPickBtn: { height: 70, borderRadius: 8, borderWidth: 1, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
+  pickerPlaceholder: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  pickerTxt: { fontSize: 10, fontWeight: '700', letterSpacing: 1 },
   pickerPreview: { width: 60, height: 60, borderRadius: 8 },
   bottomBar: { padding: 16, borderTopWidth: 1 },
   lockBtn: { paddingVertical: 14, borderRadius: 10, alignItems: 'center' },
@@ -563,6 +583,7 @@ const s = StyleSheet.create({
   tabTxt: { fontSize: 11, fontWeight: '700', letterSpacing: 1 },
   pickRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1 },
   pickThumb: { width: 28, height: 28, borderRadius: 6 },
+  pickThumbPlaceholder: { width: 28, height: 28, borderRadius: 6, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   pickName: { fontSize: 14, fontWeight: '600' },
   pickMeta: { fontSize: 12, fontWeight: '700' },
   input: { borderWidth: 1, borderRadius: 8, padding: 12, fontSize: 14 },

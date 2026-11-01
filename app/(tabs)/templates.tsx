@@ -170,10 +170,13 @@ export default function TemplatesScreen() {
                   {tExercises.map((ex, idx) => (
                     <View key={idx} style={[s.exRow, { backgroundColor: C.bg, borderColor: C.border }]}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
-                        <Image
-                          source={ex.imageUri ? { uri: ex.imageUri } : require('../../assets/images/icon.png')}
-                          style={s.rowThumb}
-                        />
+                        {ex.imageUri ? (
+                          <Image source={{ uri: ex.imageUri }} style={s.rowThumb} />
+                        ) : (
+                          <View style={[s.rowThumbPlaceholder, { backgroundColor: C.surface, borderColor: C.border }]}>
+                            <Ionicons name="barbell-outline" size={12} color={C.green3} />
+                          </View>
+                        )}
                         <Text style={[s.exRowTxt, { color: C.textPrimary }]} numberOfLines={1}>
                           {ex.name} ({ex.sets}×{ex.reps})
                         </Text>
@@ -199,10 +202,13 @@ export default function TemplatesScreen() {
                           style={[s.chip, { backgroundColor: C.surface, borderColor: C.border }]}
                           onPress={() => addFromLibrary(item)}
                         >
-                          <Image
-                            source={item.imageUri ? { uri: item.imageUri } : require('../../assets/images/icon.png')}
-                            style={s.chipThumb}
-                          />
+                          {item.imageUri ? (
+                            <Image source={{ uri: item.imageUri }} style={s.chipThumb} />
+                          ) : (
+                            <View style={[s.chipThumbPlaceholder, { backgroundColor: C.bg, borderColor: C.border }]}>
+                              <Ionicons name="barbell-outline" size={10} color={C.green3} />
+                            </View>
+                          )}
                           <Text style={[s.chipTxt, { color: C.textPrimary }]}>{item.name}</Text>
                         </TouchableOpacity>
                       ))}
@@ -277,6 +283,7 @@ const s = StyleSheet.create({
   exList: { gap: 6, maxHeight: 120 },
   exRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 10, borderRadius: 6, borderWidth: 1 },
   rowThumb: { width: 24, height: 24, borderRadius: 4 },
+  rowThumbPlaceholder: { width: 24, height: 24, borderRadius: 4, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   exRowTxt: { fontSize: 12, fontWeight: '600', flex: 1 },
   addBtn: { borderWidth: 1, borderRadius: 8, paddingVertical: 10, alignItems: 'center' },
   addBtnTxt: { fontSize: 11, fontWeight: '700', letterSpacing: 1 },
@@ -285,6 +292,7 @@ const s = StyleSheet.create({
   libScroll: { flexDirection: 'row', gap: 8 },
   chip: { borderWidth: 1, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6, marginRight: 6, flexDirection: 'row', alignItems: 'center', gap: 6 },
   chipThumb: { width: 16, height: 16, borderRadius: 8 },
+  chipThumbPlaceholder: { width: 16, height: 16, borderRadius: 8, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   chipTxt: { fontSize: 11, fontWeight: '600' },
   modalActions: { flexDirection: 'row', gap: 12, marginTop: 8 },
   btnCancel: { flex: 1, borderWidth: 1, borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
