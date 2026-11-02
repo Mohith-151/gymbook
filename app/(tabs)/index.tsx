@@ -224,7 +224,6 @@ function Heatmap({ sessions }: { sessions: Sessions }) {
         </TouchableOpacity>
       </View>
 
-      {/* Main Row layout: Heatmap grid on left, Original Streak block on right */}
       <View style={hm.bodyRow}>
         <View style={hm.heatmapArea}>
           <View style={hm.wrap}>
@@ -260,7 +259,6 @@ function Heatmap({ sessions }: { sessions: Sessions }) {
           </View>
         </View>
 
-        {/* Original Style Streak Box on the Right */}
         <View style={hm.streakBox}>
           <Text style={[hm.streakNum, { color: C.textPrimary }]}>{currentStreak}</Text>
           <Text style={hm.streakEmoji}>🔥</Text>
@@ -392,14 +390,6 @@ function RepsLineGraph({ sessions }: { sessions: Sessions }) {
           })}
         </Svg>
       </View>
-
-      <TouchableOpacity
-        style={[g.exportBtn, { borderColor: C.green3 }]}
-        onPress={() => alert('Video Export feature prepared!')}
-      >
-        <Ionicons name="videocam-outline" size={16} color={C.green3} />
-        <Text style={[g.exportTxt, { color: C.green3 }]}>EXPORT PROGRESSION VIDEO</Text>
-      </TouchableOpacity>
     </View>
   );
 }
@@ -413,8 +403,6 @@ const g = StyleSheet.create({
   pill: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
   pillTxt: { fontSize: 9, fontWeight: '800' },
   chartContainer: { alignItems: 'center', justifyContent: 'center', paddingVertical: 6 },
-  exportBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, borderRadius: 8, paddingVertical: 10 },
-  exportTxt: { fontSize: 10, fontWeight: '800', letterSpacing: 1.5 },
 });
 
 // ── Main HomeScreen ───────────────────────────────────────

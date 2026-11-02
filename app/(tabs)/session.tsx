@@ -38,6 +38,9 @@ export default function SessionScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [confirmLockVisible, setConfirmLockVisible] = useState(false);
 
+  // Full Screen Image Preview State
+  const [previewUri, setPreviewUri] = useState<string | null>(null);
+
   // Edit Exercise Modal State
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editingExId, setEditingExId] = useState<string | null>(null);
@@ -104,8 +107,7 @@ export default function SessionScreen() {
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
+      allowsEditing: false, // Turned off to prevent cropping button bugs
       quality: 0.7,
     });
 
@@ -279,13 +281,20 @@ export default function SessionScreen() {
               >
                 <View style={s.exHeader}>
                   <View style={s.exHeaderLeft}>
-                    {ex.imageUri ? (
-                      <Image source={{ uri: ex.imageUri }} style={s.exThumb} />
-                    ) : (
-                      <View style={[s.exThumbPlaceholder, { backgroundColor: C.bg, borderColor: C.border }]}>
-                        <Ionicons name="barbell-outline" size={18} color={C.green3} />
-                      </View>
-                    )}
+                    {/* Tapping the thumbnail opens the full-screen view */}
+                    <TouchableOpacity
+                      onPress={() => ex.imageUri && setPreviewUri(ex.imageUri)}
+                      disabled={!ex.imageUri}
+                    >
+                      {ex.imageUri ? (
+                        <Image source={{ uri: ex.imageUri }} style={s.exThumb} />
+                      ) : (
+                        <View style={[s.exThumbPlaceholder, { backgroundColor: C.bg, borderColor: C.border }]}>
+                          <Ionicons name="barbell-outline" size={18} color={C.green3} />
+                        </View>
+                      )}
+                    </TouchableOpacity>
+
                     <View style={{ flex: 1 }}>
                       <Text style={[s.exName, { color: C.textPrimary }]}>{ex.name}</Text>
                       <Text style={[s.exMeta, { color: C.textMuted }]}>
@@ -346,6 +355,18 @@ export default function SessionScreen() {
           </TouchableOpacity>
         </View>
       )}
+
+      {/* Full Screen Image Viewer Modal */}
+      <Modal visible={!!previewUri} transparent animationType="fade">
+        <View style={s.fullImageViewerOverlay}>
+          <TouchableOpacity style={s.closeImageBtn} onPress={() => setPreviewUri(null)}>
+            <Ionicons name="close" size={28} color="#fff" />
+          </TouchableOpacity>
+          {previewUri && (
+            <Image source={{ uri: previewUri }} style={s.fullImage} resizeMode="contain" />
+          )}
+        </View>
+      </Modal>
 
       {/* Slide-down Add Modal */}
       <Modal visible={modalVisible} animationType="slide" transparent>
@@ -595,4 +616,9 @@ const s = StyleSheet.create({
   confirmTxt: { fontSize: 13, lineHeight: 18 },
   btnCancel: { borderWidth: 1, borderRadius: 8, paddingVertical: 12, alignItems: 'center', justifyContent: 'center' },
   btnCancelTxt: { fontSize: 12, fontWeight: '700', letterSpacing: 1 },
+
+  // Full Screen Image Overlay Styles
+  fullImageViewerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', justifyContent: 'center', alignItems: 'center' },
+  closeImageBtn: { position: 'absolute', top: 50, right: 20, zIndex: 10, padding: 10 },
+  fullImage: { width: '90%', height: '70%' },
 });
