@@ -297,6 +297,6 @@ const s = StyleSheet.create({
   modalActions: { flexDirection: 'row', gap: 12, marginTop: 8 },
   btnCancel: { flex: 1, borderWidth: 1, borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
   btnCancelTxt: { fontSize: 12, fontWeight: '700', letterSpacing: 1 },
-  btnSave: { borderRadius: 8, paddingVertical: 12,paddingHorizontal: 16,justifyContent: 'center', alignItems: 'center' ,width: '100%'},
+  btnSave: {flex:1, borderRadius: 8, paddingVertical: 12,paddingHorizontal: 16,justifyContent: 'center', alignItems: 'center' ,width: '100%'},
   btnSaveTxt: { color: '#000', fontSize: 12, fontWeight: '800', letterSpacing: 1 },
 });
