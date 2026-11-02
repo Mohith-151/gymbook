@@ -287,7 +287,7 @@ const s = StyleSheet.create({
   exRowTxt: { fontSize: 12, fontWeight: '600', flex: 1 },
   addBtn: { borderWidth: 1, borderRadius: 8, paddingVertical: 10, alignItems: 'center' },
   addBtnTxt: { fontSize: 11, fontWeight: '700', letterSpacing: 1 },
-  addBox: { borderWidth: 1, borderRadius: 10, padding: 12, gap: 8 },
+  addBox: { borderWidth: 1, borderRadius: 10, padding: 12, gap: 8, marginTop: 4 },
   addBoxTitle: { fontSize: 9, letterSpacing: 1, fontWeight: '700' },
   libScroll: { flexDirection: 'row', gap: 8 },
   chip: { borderWidth: 1, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6, marginRight: 6, flexDirection: 'row', alignItems: 'center', gap: 6 },
@@ -297,6 +297,6 @@ const s = StyleSheet.create({
   modalActions: { flexDirection: 'row', gap: 12, marginTop: 8 },
   btnCancel: { flex: 1, borderWidth: 1, borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
   btnCancelTxt: { fontSize: 12, fontWeight: '700', letterSpacing: 1 },
-  btnSave: { flex: 1, borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
+  btnSave: { borderRadius: 8, paddingVertical: 12,paddingHorizontal: 16,justifyContent: 'center', alignItems: 'center' ,width: '100%'},
   btnSaveTxt: { color: '#000', fontSize: 12, fontWeight: '800', letterSpacing: 1 },
 });
